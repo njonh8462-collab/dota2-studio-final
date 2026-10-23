@@ -1,0 +1,2400 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+<title>Dota 2 Studio — v50 (AR Ultimate)</title>
+<style>
+:root{--bg:#0a0a11;--panel:#12121c;--surface:#191924;--surface2:#22222f;--surface3:#2a2a3a;--border:#2b2b3d;--border2:#383850;--text:#f2f2f8;--dim:#9a9ab0;--muted:#6c6c85;--accent:#00d9f5;--accent-d:#00a8c0;--pink:#ff2d92;--orange:#ff9a3c;--red:#ff4757;--green:#4dff88;--yellow:#ffc847;--sb:env(safe-area-inset-bottom,0px);color-scheme:dark}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;user-select:none}
+html,body{height:100%;overflow:hidden}
+body{font-family:system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--text);display:flex;flex-direction:column;font-size:14px;-webkit-font-smoothing:antialiased}
+.viewport{flex:1;position:relative;background:var(--bg);touch-action:none;min-height:0}
+#canvas{width:100%;height:100%;display:block;outline:none}
+.hud{position:absolute;top:calc(10px + env(safe-area-inset-top));left:10px;right:10px;display:flex;justify-content:space-between;gap:8px;z-index:3;pointer-events:none}
+.badge{padding:6px 12px;border-radius:20px;font-size:0.66rem;color:var(--dim);background:rgba(18,18,28,0.92);backdrop-filter:blur(10px);border:1px solid var(--border);font-weight:500}
+.badge.ok{color:var(--green);border-color:var(--green)}.badge.warn{color:var(--yellow);border-color:var(--yellow)}.badge.err{color:var(--red);border-color:var(--red)}
+.rec{position:absolute;top:55px;left:50%;transform:translateX(-50%);background:var(--red);color:#fff;padding:5px 14px;border-radius:20px;font-size:0.72rem;font-weight:bold;display:none;animation:blink 1s infinite;z-index:100}
+@keyframes blink{50%{opacity:0.4}}
+.fab{position:absolute;bottom:calc(8px + var(--sb));right:8px;display:flex;flex-direction:column;gap:6px;z-index:5}
+.fab button{width:40px;height:40px;border-radius:50%;background:rgba(25,25,36,0.94);backdrop-filter:blur(10px);border:1px solid var(--border2);color:var(--text);font-size:1rem;display:flex;align-items:center;justify-content:center;cursor:pointer}
+.fab button:active:not(:disabled){background:var(--accent);color:#001418}
+.fab button:disabled{opacity:0.3;cursor:not-allowed}
+.fab .divider-h{height:1px;background:var(--border2);margin:2px 4px;width:32px;align-self:center;}
+.fab button.ar-btn { background: #ff3d00; color: #fff; border-color: #ff3d00; font-weight: bold; font-size: 0.8rem; }
+
+/* AR Overlay */
+#ar-overlay { position: fixed; inset: 0; z-index: 9999; display: none; pointer-events: none; background: transparent; }
+#ar-hint { position: absolute; bottom: 40px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.8); color: #fff; padding: 15px 30px; border-radius: 30px; font-family: Tahoma; font-size: 16px; text-align: center; white-space: nowrap; transition: opacity 0.3s; border: 1px solid rgba(255,255,255,0.2); box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
+#ar-exit { position: absolute; top: 20px; right: 20px; pointer-events: auto; background: #d50000; color: #fff; border: none; padding: 12px 24px; border-radius: 8px; font-family: Tahoma; font-weight: bold; font-size: 14px; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
+
+.panel{flex-shrink:0;position:relative;z-index:10;background:var(--panel);border-top:1px solid var(--border2);display:flex;flex-direction:column;border-radius:14px 14px 0 0;box-shadow:0 -6px 24px rgba(0,0,0,0.6);transition:transform 0.25s cubic-bezier(0.4,0,0.2,1)}
+.panel.collapsed{transform:translateY(calc(100% - 46px))}
+.drag{display:flex;justify-content:center;padding:6px 0 3px;cursor:grab;touch-action:none}
+.drag::after{content:'';width:34px;height:3px;background:var(--border2);border-radius:2px}
+
+.tabs{display:flex;background:var(--surface);padding:0 6px;gap:2px;flex-shrink:0;height:46px}
+.tab{flex:1;padding:6px 4px;background:transparent;border:none;color:var(--muted);font-size:0.55rem;cursor:pointer;font-family:inherit;display:flex;flex-direction:column;align-items:center;gap:1px;transition:all 0.15s;font-weight:600;border-radius:6px 6px 0 0}
+.tab.active{color:var(--accent);background:var(--panel);border-bottom:2px solid var(--accent)}
+
+.content{display:none;flex-direction:column;min-height:0}
+.content.active{display:flex}
+
+.ctrl-row{display:flex;align-items:center;gap:6px;padding:8px 10px;overflow-x:auto;overflow-y:hidden;scrollbar-width:none;min-height:56px;flex-shrink:0}
+.ctrl-row::-webkit-scrollbar{display:none}
+
+.chip{display:flex;align-items:center;gap:5px;font-size:0.7rem;font-weight:500;padding:7px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;cursor:pointer;white-space:nowrap;flex-shrink:0;color:var(--dim);transition:all 0.15s}
+.chip input{width:14px;height:14px;accent-color:var(--accent);cursor:pointer}
+.chip.on{background:rgba(0,217,245,0.15);border-color:var(--accent);color:var(--accent)}
+.divider{width:1px;height:26px;background:var(--border2);flex-shrink:0;margin:0 2px}
+
+button.primary,button.ghost,button.danger,button.success{white-space:nowrap;flex-shrink:0;border-radius:8px;display:inline-flex;align-items:center;gap:4px;font-weight:600;cursor:pointer;transition:all 0.1s;border:none;font-family:inherit}
+button.primary{background:var(--accent);color:#001418;padding:8px 12px;font-size:0.75rem}
+button.ghost{background:var(--surface2);color:var(--text);border:1px solid var(--border);padding:8px 12px;font-size:0.75rem}
+button.danger{background:var(--red);color:#fff;padding:8px 12px;font-size:0.75rem}
+button.success{background:var(--green);color:#001418;padding:8px 12px;font-size:0.75rem}
+button.mode{width:36px;height:36px;padding:0;background:var(--surface2);color:var(--text);border:1px solid var(--border);border-radius:8px;font-size:0.8rem;flex-shrink:0;display:flex;align-items:center;justify-content:center}
+button.mode.active{background:var(--accent);color:#001418;border-color:var(--accent)}
+button:active:not(:disabled){transform:scale(0.96)}
+button:disabled{opacity:0.35;cursor:not-allowed}
+
+select,input[type=number]{background:var(--surface2);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:7px 10px;font-size:0.72rem;font-family:inherit;outline:none;flex-shrink:0;cursor:pointer}
+select{min-width:90px}
+input[type=number]{width:60px}
+
+input[type=range]{-webkit-appearance:none;background:var(--border2);height:4px;border-radius:2px;outline:none;width:80px;flex-shrink:0}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;background:var(--accent);border-radius:50%;cursor:pointer}
+
+.file-btn{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;background:var(--accent);color:#001418;border-radius:8px;font-weight:700;cursor:pointer;font-size:0.75rem;white-space:nowrap;flex-shrink:0}
+.file-btn.alt{background:var(--surface2);color:var(--text);border:1px dashed var(--border2);font-weight:500}
+input[type=file]{display:none}
+
+.bone-path{font-size:0.62rem;color:var(--accent);padding:6px 10px;background:var(--surface);border-radius:6px;border:1px solid var(--border);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:ui-monospace,monospace;direction:ltr;text-align:left;flex-shrink:0;max-width:240px}
+.info-chip{font-size:0.65rem;padding:6px 10px;background:var(--surface2);border-radius:6px;font-family:ui-monospace,monospace;direction:ltr;white-space:nowrap;flex-shrink:0;color:var(--dim)}
+.info-chip .val{color:var(--accent);font-weight:700}
+
+.fixed-timeline { flex-shrink: 0; position: relative; background: #0f0f18; border-top: 1px solid var(--border2); padding: 8px 10px calc(8px + var(--sb)); z-index: 20; box-shadow: 0 -6px 30px rgba(0,0,0,0.8); display: flex; flex-direction: column; gap: 6px; }
+.timeline-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.timeline-controls-left { display: flex; align-items: center; gap: 6px; }
+.timeline-ruler { position: relative; height: 14px; width: 100%; margin-bottom: 2px; border-bottom: 1px solid var(--border); }
+.ruler-tick { position: absolute; bottom: 0; width: 1px; height: 6px; background: var(--border2); }
+.ruler-text { position: absolute; bottom: 6px; font-size: 0.55rem; color: var(--muted); transform: translateX(-50%); font-family: ui-monospace, monospace; }
+.timeline-track-container { position: relative; height: 42px; background: #14141d; border-radius: 6px; border: 1px solid var(--border); overflow: hidden; cursor: pointer; touch-action: none; }
+.timeline-track { position: absolute; top: 0; left: 0; right: 0; bottom: 0; }
+.timeline-grid { position: absolute; top: 0; bottom: 0; width: 100%; display: flex; pointer-events: none; }
+.grid-line { flex: 1; border-right: 1px solid rgba(255,255,255,0.05); height: 100%; }
+.playhead{position:absolute;top:0;bottom:0;width:2px;background:var(--accent);pointer-events:none;box-shadow:0 0 8px var(--accent);z-index:10}
+.playhead::before{content:'';position:absolute;top:-2px;left:-7px;width:16px;height:12px;background:var(--accent);border-radius:2px 2px 4px 4px;clip-path: polygon(0% 0%, 100% 0%, 100% 70%, 50% 100%, 0% 70%);}
+.kf{position:absolute;top:50%;width:14px;height:14px;background:var(--pink);transform:translate(-50%,-50%) rotate(45deg);z-index:5;cursor:pointer;border:1.5px solid rgba(0,0,0,0.8);border-radius:2px;box-shadow:0 0 8px rgba(255,45,146,0.5)}
+.kf.other{width:6px;height:6px;background:var(--muted);opacity:0.6;border-width:1px;box-shadow:none}
+.kf.camera{background:var(--green);border-radius:50%;transform:translate(-50%,-50%);box-shadow:0 0 8px rgba(77,255,136,0.5)}
+.kf.mirror{background:var(--orange);box-shadow:0 0 8px rgba(255,154,60,0.5)}
+.kf.selected{background:var(--accent);box-shadow:0 0 12px rgba(0,217,245,0.8);z-index:6;border-color:#fff;}
+.kf.active-sel { border: 2px solid white; box-shadow: 0 0 15px white; z-index: 20; transform: translate(-50%,-50%) rotate(45deg) scale(1.2); }
+.time-label{font-size:0.75rem;color:var(--dim);font-variant-numeric:tabular-nums;min-width:55px;text-align:center;font-weight:700}
+.time-label .val{color:var(--accent);}
+
+.log-row{font-family:ui-monospace,monospace;font-size:0.6rem;background:#000;color:var(--green);padding:6px 10px;overflow-y:auto;direction:ltr;text-align:left;white-space:pre-wrap;max-height:60px;border-top:1px solid var(--border);flex-shrink:0;line-height:1.4}
+.advanced-overlay{display:none;position:absolute;bottom:100%;left:0;right:0;max-height:60vh;background:var(--panel);border-top:1px solid var(--border2);border-radius:14px 14px 0 0;overflow-y:auto;padding:12px;box-shadow:0 -6px 24px rgba(0,0,0,0.7);z-index:15}
+.advanced-overlay.show{display:block}
+.adv-row{display:flex;gap:10px;align-items:center;padding:6px 0}
+.adv-row label{font-size:0.72rem;color:var(--dim);min-width:90px;font-weight:500}
+.adv-row input[type=range]{flex:1}
+.adv-row .val{font-size:0.7rem;color:var(--accent);min-width:36px;text-align:right;font-family:ui-monospace,monospace;font-weight:700}
+.adv-header{display:flex;justify-content:space-between;align-items:center;padding-bottom:10px;border-bottom:1px solid var(--border);margin-bottom:8px}
+.adv-header h3{font-size:0.85rem;font-weight:700;color:var(--text)}
+.adv-header button{background:var(--surface2);border:none;color:var(--text);width:30px;height:30px;border-radius:50%;font-size:1rem;cursor:pointer}
+
+.toast{position:fixed;bottom:calc(120px + var(--sb));left:50%;transform:translateX(-50%) translateY(12px) scale(0.95);background:var(--surface2);color:var(--text);padding:10px 20px;border-radius:22px;border:1.5px solid var(--border2);font-size:0.78rem;z-index:1000;opacity:0;transition:all 0.28s;pointer-events:none;max-width:90%;text-align:center;box-shadow:0 6px 24px rgba(0,0,0,0.6);font-weight:500}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0) scale(1)}
+.toast.success{border-color:var(--green);color:var(--green)}
+.toast.error{border-color:var(--red);color:var(--red)}
+.toast.warning{border-color:var(--yellow);color:var(--yellow)}
+.toast.info{border-color:var(--accent);color:var(--accent)}
+
+@media (max-width:640px){
+  .tabs{height:42px}
+  .tab{font-size:0.5rem}
+  .ctrl-row{min-height:52px;padding:6px 8px}
+  button.mode{width:34px;height:34px;font-size:0.7rem}
+  .time-label{min-width:45px;font-size:0.7rem}
+  .timeline-track-container{height:36px}
+}
+</style>
+<script type="importmap">
+{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}
+</script>
+</head>
+<body>
+<div class="viewport">
+    <canvas id="canvas"></canvas>
+    <div class="hud">
+        <div class="badge" id="status">آماده</div>
+        <div class="badge" id="fps">FPS --</div>
+    </div>
+    <div class="rec" id="rec">REC</div>
+    <div class="fab">
+        <button id="arBtn" class="ar-btn" title="واقعیت افزوده (AR)">AR</button>
+        <div class="divider-h"></div>
+        <button id="undoBtn" title="Undo" disabled><</button>
+        <button id="redoBtn" title="Redo" disabled>></button>
+        <div class="divider-h"></div>
+        <button id="zoomIn" title="+">+</button>
+        <button id="zoomOut" title="−">−</button>
+        <button id="resetCam" title="ریست">⟲</button>
+        <button id="toggleUI" title="پنل">☰</button>
+    </div>
+</div>
+
+<!-- AR Overlay UI -->
+<div id="ar-overlay">
+    <div id="ar-hint">دوربین را به سمت زمین بگیرید و لمس کنید</div>
+    <button id="ar-exit">خروج از AR</button>
+</div>
+
+<div class="panel" id="panel">
+    <div class="advanced-overlay" id="advancedPanel">
+        <div class="adv-header"><h3 id="advTitle">تنظیمات پیشرفته</h3><button id="advClose">✕</button></div>
+        <div id="advContent"></div>
+    </div>
+    <div class="drag" id="dragHandle"></div>
+    <div class="tabs">
+        <button class="tab active" data-tab="load"><span>فایل</span></button>
+        <button class="tab" data-tab="fix"><span>تعمیر</span></button>
+        <button class="tab" data-tab="animate"><span>انیمیشن</span></button>
+        <button class="tab" data-tab="camera"><span>دوربین</span></button>
+        <button class="tab" data-tab="render"><span>محیط</span></button>
+        <button class="tab" data-tab="export"><span>خروجی</span></button>
+    </div>
+
+    <div class="content active" data-content="load">
+        <div class="ctrl-row">
+            <label class="file-btn" for="folderInput">FBX + تکسچر</label>
+            <input type="file" id="folderInput" webkitdirectory directory multiple />
+            <label class="file-btn alt" for="animInput">FBX انیمیشن</label>
+            <input type="file" id="animInput" accept=".fbx" />
+            <div class="divider"></div>
+            <label class="chip"><input type="checkbox" id="toggleSkel" checked /> اسکلت</label>
+            <label class="chip"><input type="checkbox" id="toggleGrid" checked /> گرید</label>
+            <label class="chip"><input type="checkbox" id="autoFix" checked /> تعمیر خودکار</label>
+        </div>
+    </div>
+
+    <div class="content" data-content="fix">
+        <div class="ctrl-row">
+            <button id="mergeSkel" class="primary">ادغام</button>
+            <button id="rebuildHier" class="danger">بازسازی</button>
+            <button id="verifyHier" class="ghost">تست</button>
+            <button id="runAllFixes" class="success">همه</button>
+            <div class="divider"></div>
+            <select id="manualParent"><option value="">والد...</option></select>
+            <select id="manualChild"><option value="">فرزند...</option></select>
+            <button id="manualReparent" class="primary">اتصال</button>
+            <button id="manualDetach" class="ghost">جدا کردن</button>
+        </div>
+        <div class="log-row" id="log">آماده...</div>
+    </div>
+
+    <div class="content" data-content="animate">
+        <div class="ctrl-row">
+            <select id="boneSelect"><option value="">-- استخوان --</option></select>
+            <button id="pickBone" class="mode" title="انتخاب">انتخاب</button>
+            <button id="deselect" class="ghost" title="لغو">لغو</button>
+            <div class="divider"></div>
+            <label class="chip"><input type="checkbox" id="faBoneNames" /> فارسی</label>
+            <label class="chip"><input type="checkbox" id="smartSelect" /> هوشمند</label>
+            <label class="chip"><input type="checkbox" id="mirrorMode" /> آینه</label>
+            <select id="mirrorAxis" style="min-width:80px;">
+                <option value="x" selected>X</option><option value="y">Y</option><option value="z">Z</option><option value="all">همه</option>
+            </select>
+            <label class="chip"><input type="checkbox" id="mirrorSubtreeToggle" checked /> زیرشاخه</label>
+            <div class="divider"></div>
+            <label class="chip"><input type="checkbox" id="onionSkinToggle" /> پیاز</label>
+            <select id="onionFrames" style="min-width:60px;"><option value="1" selected>۱ فریم</option><option value="2">۲ فریم</option><option value="3">۳ فریم</option></select>
+            <div class="divider"></div>
+            <label class="chip"><input type="checkbox" id="autoKey" checked /> خودکار</label>
+            <label class="chip"><input type="checkbox" id="snapFrame" checked /> جذب</label>
+            <div class="divider"></div>
+            <button class="mode active" data-mode="rotate" title="چرخش">چرخش</button>
+            <button class="mode" data-mode="translate" title="جابه‌جایی">حرکت</button>
+            <button class="mode" data-mode="scale" title="مقیاس">مقیاس</button>
+            <div class="divider"></div>
+            <button id="addKey" class="primary">کلید</button>
+            <button id="addKeyAll" class="ghost">کلید همه</button>
+            <button id="copyKey" class="ghost" title="کپی فریم">کپی</button>
+            <button id="pasteKey" class="ghost" title="چسباندن فریم">چسباندن</button>
+            <button id="delKey" class="ghost">حذف</button>
+            <button id="clearKeys" class="ghost">پاک</button>
+            <div class="divider"></div>
+            <button id="openAnimateAdvanced" class="ghost">پیشرفته</button>
+            <span id="bonePath" class="bone-path">-</span>
+            <span class="info-chip" id="keyInfo"><span class="val">-</span></span>
+        </div>
+    </div>
+
+    <div class="content" data-content="camera">
+        <div class="ctrl-row">
+            <label class="chip" style="padding:8px 12px;font-size:0.78rem;"><input type="checkbox" id="camEnabled" /> <b>دوربین فعال</b></label>
+            <div class="divider"></div>
+            <button id="camAddKey" class="primary">کلید</button>
+            <button id="camPreview" class="ghost">پیش‌نمایش</button>
+            <button id="camClear" class="danger">پاک</button>
+            <div class="divider"></div>
+            <select id="camInterp"><option value="smooth" selected>نرم</option><option value="linear">خطی</option></select>
+            <span class="info-chip">کلیدها: <span class="val" id="camKeyCount">0</span></span>
+            <span class="info-chip" id="camState">غیرفعال</span>
+        </div>
+    </div>
+
+    <div class="content" data-content="render">
+        <div class="ctrl-row">
+            <select id="envSelect" style="min-width:140px;font-size:0.75rem;padding:8px 10px;">
+                <option value="studio">استودیو</option>
+                <option value="meadow">دشت سبز</option>
+                <option value="horror">ترسناک</option>
+                <option value="sunset">غروب</option>
+                <option value="night">شب پرستاره</option>
+                <option value="desert">بیابان</option>
+            </select>
+            <span class="info-chip" id="envInfo">استودیو</span>
+            <div class="divider"></div>
+            <button id="openLighting" class="ghost">نورپردازی</button>
+            <div class="divider"></div>
+            <label class="chip" style="font-size:0.7rem;">کیفیت:</label>
+            <select id="recQuality" style="min-width:75px;">
+                <option value="720">720p</option><option value="1080" selected>1080p</option><option value="1440">1440p</option><option value="2160">4K</option>
+            </select>
+            <select id="recFps" style="min-width:60px;">
+                <option value="24">24fps</option><option value="30" selected>30fps</option><option value="60">60fps</option>
+            </select>
+            <button id="record" class="danger">ضبط</button>
+            <button id="stopRecord" class="ghost" disabled>توقف</button>
+        </div>
+    </div>
+
+    <div class="content" data-content="export">
+        <div class="ctrl-row">
+            <button id="exportGltf" class="primary">glTF</button>
+            <button id="saveProject" class="primary">پروژه</button>
+            <label class="file-btn alt" for="projectInput">بارگذاری</label>
+            <input type="file" id="projectInput" accept=".json" />
+            <div class="divider"></div>
+            <span class="info-chip" style="color:var(--green);">اسکلت/گیزما در خروجی مخفی</span>
+        </div>
+    </div>
+</div>
+
+<div class="fixed-timeline" id="fixedTimeline">
+    <div class="timeline-header">
+        <div class="timeline-controls-left">
+            <button id="prevFrame" class="ghost" title="قبلی">قبلی</button>
+            <button id="play" class="primary" title="پخش">پخش</button>
+            <button id="stop" class="ghost" title="توقف">توقف</button>
+            <button id="nextFrame" class="ghost" title="بعدی">بعدی</button>
+            <button id="loopBtn" class="ghost" style="background:var(--accent);color:#001418;">تکرار</button>
+        </div>
+        <span class="time-label"><span class="val" id="timeCurrent">0.00s</span></span>
+        <div style="display:flex;gap:6px;align-items:center;">
+            <input type="number" id="duration" min="0.5" max="120" step="0.5" value="5" title="مدت" style="width:46px;padding:4px;font-size:0.7rem;">
+            <input type="number" id="fpsInput" min="10" max="60" step="1" value="24" title="FPS" style="width:40px;padding:4px;font-size:0.7rem;">
+        </div>
+    </div>
+    
+    <div class="timeline-ruler" id="ruler"></div>
+
+    <div class="timeline-track-container" id="track">
+        <div class="timeline-grid" id="gridLines"></div>
+        <div class="playhead" id="playhead"></div>
+        <div class="timeline-track" id="kfContainer"></div>
+    </div>
+    
+    <div class="timeline-track-container" id="camTrack" style="display:none; height:20px; margin-top:4px;">
+        <div class="playhead" id="camPlayhead"></div>
+    </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { TransformControls } from 'three/addons/controls/TransformControls.js';
+import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
+import { TGALoader } from 'three/addons/loaders/TGALoader.js';
+import { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { clone as cloneSkeleton } from 'three/addons/utils/SkeletonUtils.js';
+
+const $ = id => document.getElementById(id);
+const canvas = $('canvas');
+
+function toast(msg, type = 'info', ms = 2400) {
+    const el = $('toast');
+    el.textContent = msg;
+    el.className = 'toast show ' + type;
+    clearTimeout(el._t);
+    el._t = setTimeout(() => el.classList.remove('show'), ms);
+}
+function setStatus(txt, type = '') { const el = $('status'); el.textContent = txt; el.className = 'badge' + (type ? ' ' + type : ''); }
+function logDiag(msg) { const el = $('log'); el.textContent += '\n' + msg; el.scrollTop = el.scrollHeight; console.log('[D]', msg); }
+
+// ═══════ RENDERER ═══════
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: true, powerPreference: 'high-performance', alpha: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.NoToneMapping; 
+renderer.toneMappingExposure = 1.0;
+renderer.xr.enabled = true; 
+
+const scene = new THREE.Scene(); scene.background = new THREE.Color(0x0a0a11);
+const pmrem = new THREE.PMREMGenerator(renderer);
+scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+scene.environmentIntensity = 0.3;
+
+const camera = new THREE.PerspectiveCamera(40, 1, 0.01, 2000); camera.position.set(3, 2, 4);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true; controls.dampingFactor = 0.08; controls.screenSpacePanning = true;
+
+const ambientLight = new THREE.AmbientLight(0xffffff, 0.4); scene.add(ambientLight);
+const hemiLight = new THREE.HemisphereLight(0xffffff, 0x404050, 0.3); scene.add(hemiLight);
+const keyLight = new THREE.DirectionalLight(0xffffff, 0.8);
+keyLight.position.set(5, 10, 7); keyLight.castShadow = true;
+keyLight.shadow.mapSize.set(2048, 2048); keyLight.shadow.bias = -0.0001;
+scene.add(keyLight); scene.add(keyLight.target);
+const fillLight = new THREE.DirectionalLight(0xffffff, 0.2); fillLight.position.set(-5, 5, -5); scene.add(fillLight);
+const rimLight = new THREE.DirectionalLight(0xffffff, 0.2); rimLight.position.set(0, 8, -10); scene.add(rimLight);
+
+const lighting = { sunMult: 1, ambMult: 1, fillMult: 1, rimMult: 1, exposure: 1.0 };
+
+const grid = new THREE.GridHelper(20, 20, 0x2a2a3a, 0x15151e);
+grid.material.opacity = 0.5; grid.material.transparent = true; scene.add(grid);
+
+const tControls = new TransformControls(camera, renderer.domElement);
+tControls.setSize(0.7); tControls.setMode('rotate'); tControls.setSpace('local'); scene.add(tControls);
+
+const boneHL = new THREE.Mesh(new THREE.SphereGeometry(0.03, 16, 16), new THREE.MeshBasicMaterial({ color: 0x00d9f5, depthTest: false, transparent: true, opacity: 0.9 }));
+boneHL.renderOrder = 999; boneHL.visible = false; scene.add(boneHL);
+
+// WebXR AR Setup
+let xrSession = null;
+let xrHitTestSource = null;
+let originalBg = null;
+let arGroup = null;
+let shadowPlane = null;
+const reticle = new THREE.Mesh(
+    new THREE.RingGeometry(0.1, 0.12, 32).rotateX(-Math.PI / 2),
+    new THREE.MeshBasicMaterial({ color: 0x00ff00, transparent: true, opacity: 0.8 })
+);
+reticle.matrixAutoUpdate = false;
+reticle.visible = false;
+scene.add(reticle);
+
+let onionPrev = null, onionNext = null;
+const onionPrevBones = new Map();
+const onionNextBones = new Map();
+
+// ═══════ ENVIRONMENT DEFINITIONS ═══════
+const ENV_DEFS = {
+    studio: {
+        name: 'استودیو', bg: 0x0a0a11, fog: null,
+        ambient: { c: 0xffffff, i: 0.4 }, hemi: { sky: 0xffffff, gnd: 0x3a3a4a, i: 0.3 },
+        sun: { c: 0xffffff, i: 0.8, p: [5, 10, 7] },
+        fill: { c: 0xffffff, i: 0.2, p: [-5, 5, -5] },
+        rim: { c: 0xffffff, i: 0.2, p: [0, 8, -10] },
+        skyType: 'solid', ground: null, decorations: null
+    },
+    meadow: {
+        name: 'دشت سبز', bg: 0x9ad0f0, fog: { c: 0xb8dcf0, n: 200, f: 1000 },
+        ambient: { c: 0xffffff, i: 0.4 }, hemi: { sky: 0xffffff, gnd: 0x4a6a2f, i: 0.3 },
+        sun: { c: 0xffffff, i: 0.8, p: [15, 22, 10] },
+        fill: { c: 0xffffff, i: 0.2, p: [-8, 5, -8] },
+        rim: { c: 0xffffff, i: 0.2, p: [0, 10, -20] },
+        skyType: 'gradient', skyTop: 0x5a9ed8, skyBottom: 0xe8f4ff,
+        ground: { color: 0x6a9a3e, size: 1000 }, decorations: 'meadow'
+    },
+    horror: {
+        name: 'ترسناک', bg: 0x0a0505, fog: { c: 0x1a0808, n: 100, f: 600 },
+        ambient: { c: 0xffffff, i: 0.3 }, hemi: { sky: 0xffffff, gnd: 0x1a1010, i: 0.2 },
+        sun: { c: 0xffffff, i: 0.6, p: [12, 18, 5] },
+        fill: { c: 0xffffff, i: 0.2, p: [-5, 5, -5] },
+        rim: { c: 0xffffff, i: 0.2, p: [0, 10, -15] },
+        skyType: 'gradient', skyTop: 0x1a0505, skyBottom: 0x6a1515,
+        ground: { color: 0x2a1510, size: 1000 }, decorations: 'horror'
+    },
+    sunset: {
+        name: 'غروب', bg: 0xff8a5a, fog: { c: 0xffa580, n: 300, f: 1500 },
+        ambient: { c: 0xffffff, i: 0.4 }, hemi: { sky: 0xffffff, gnd: 0x5a2a15, i: 0.3 },
+        sun: { c: 0xffffff, i: 0.8, p: [18, 8, -22] },
+        fill: { c: 0xffffff, i: 0.2, p: [-10, 5, 5] },
+        rim: { c: 0xffffff, i: 0.2, p: [0, 5, -30] },
+        skyType: 'gradient', skyTop: 0x6a3080, skyBottom: 0xffb070,
+        ground: { color: 0xa05a40, size: 1000 }, decorations: 'sunset'
+    },
+    night: {
+        name: 'شب پرستاره', bg: 0x050518, fog: { c: 0x0a0a20, n: 150, f: 800 },
+        ambient: { c: 0xffffff, i: 0.3 }, hemi: { sky: 0xffffff, gnd: 0x101020, i: 0.2 },
+        sun: { c: 0xffffff, i: 0.6, p: [10, 15, 5] },
+        fill: { c: 0xffffff, i: 0.2, p: [-8, 5, -8] },
+        rim: { c: 0xffffff, i: 0.2, p: [0, 10, -15] },
+        skyType: 'gradient', skyTop: 0x020210, skyBottom: 0x1a1a3a,
+        ground: { color: 0x101018, size: 1000 }, decorations: 'night'
+    },
+    desert: {
+        name: 'بیابان', bg: 0xf0d8a8, fog: { c: 0xf0d8b0, n: 200, f: 1000 },
+        ambient: { c: 0xffffff, i: 0.4 }, hemi: { sky: 0xffffff, gnd: 0x8a6030, i: 0.3 },
+        sun: { c: 0xffffff, i: 0.8, p: [10, 22, 5] },
+        fill: { c: 0xffffff, i: 0.2, p: [-8, 5, -8] },
+        rim: { c: 0xffffff, i: 0.2, p: [0, 8, -15] },
+        skyType: 'gradient', skyTop: 0xc8a870, skyBottom: 0xffe8b8,
+        ground: { color: 0xd8b878, size: 1000 }, decorations: 'desert'
+    }
+};
+
+let currentEnv = 'studio';
+let envGround = null, envSky = null;
+let envDecorations = [];
+let envParticles = [];
+
+function makeGradientSky(top, bottom) {
+    const geo = new THREE.SphereGeometry(400, 32, 16);
+    const mat = new THREE.ShaderMaterial({
+        uniforms: { topColor: { value: new THREE.Color(top) }, bottomColor: { value: new THREE.Color(bottom) }, offset: { value: 15 }, exponent: { value: 0.7 } },
+        vertexShader: `varying vec3 vW;void main(){vec4 w=modelMatrix*vec4(position,1.0);vW=w.xyz;gl_Position=projectionMatrix*viewMatrix*w;}`,
+        fragmentShader: `uniform vec3 topColor,bottomColor;uniform float offset,exponent;varying vec3 vW;void main(){float h=normalize(vW+vec3(0.0,offset,0.0)).y;gl_FragColor=vec4(mix(bottomColor,topColor,max(pow(max(h,0.0),exponent),0.0)),1.0);}`,
+        side: THREE.BackSide, depthWrite: false
+    });
+    return new THREE.Mesh(geo, mat);
+}
+
+function makeTree(scale = 1, leafColor = 0x2d5a1f, trunkColor = 0x3a2010, addBranches = true) {
+    const g = new THREE.Group();
+    const trunkMat = new THREE.MeshStandardMaterial({ color: trunkColor, roughness: 0.95 });
+    const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.15 * scale, 0.28 * scale, 1.8 * scale, 7), trunkMat);
+    trunk.position.y = 0.9 * scale; trunk.castShadow = true; g.add(trunk);
+    const leafMat = new THREE.MeshStandardMaterial({ color: leafColor, roughness: 0.85 });
+    const leaf1 = new THREE.Mesh(new THREE.SphereGeometry(1.0 * scale, 8, 6), leafMat);
+    leaf1.position.y = 2.0 * scale; leaf1.scale.set(1, 0.9, 1); leaf1.castShadow = true; g.add(leaf1);
+    const leaf2 = new THREE.Mesh(new THREE.SphereGeometry(0.75 * scale, 8, 6), leafMat);
+    leaf2.position.set(0.5 * scale, 2.6 * scale, 0.3 * scale); leaf2.castShadow = true; g.add(leaf2);
+    const leaf3 = new THREE.Mesh(new THREE.SphereGeometry(0.7 * scale, 8, 6), leafMat);
+    leaf3.position.set(-0.4 * scale, 2.5 * scale, -0.3 * scale); leaf3.castShadow = true; g.add(leaf3);
+    return g;
+}
+function makeDeadTree(scale = 1) {
+    const g = new THREE.Group();
+    const mat = new THREE.MeshStandardMaterial({ color: 0x1a0a08, roughness: 1.0 });
+    const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.1 * scale, 0.25 * scale, 2.4 * scale, 5), mat);
+    trunk.position.y = 1.2 * scale; trunk.castShadow = true; g.add(trunk);
+    for (let i = 0; i < 5; i++) {
+        const br = new THREE.Mesh(new THREE.CylinderGeometry(0.03 * scale, 0.07 * scale, 1.1 * scale, 4), mat);
+        const a = (i / 5) * Math.PI * 2 + Math.random() * 0.5;
+        br.position.set(Math.cos(a) * 0.3 * scale, (1.6 + Math.random() * 0.5) * scale, Math.sin(a) * 0.3 * scale);
+        br.rotation.z = Math.cos(a) * 0.8;
+        br.rotation.x = Math.sin(a) * 0.8;
+        br.castShadow = true; g.add(br);
+    }
+    return g;
+}
+function makeRock(scale = 0.5, color = 0x606060) {
+    const geo = new THREE.DodecahedronGeometry(scale, 0);
+    const pos = geo.attributes.position;
+    for (let i = 0; i < pos.count; i++) {
+        const x = pos.getX(i), y = pos.getY(i), z = pos.getZ(i);
+        const n = 0.15;
+        pos.setXYZ(i, x + (Math.random() - 0.5) * n * scale, y + (Math.random() - 0.5) * n * scale, z + (Math.random() - 0.5) * n * scale);
+    }
+    geo.computeVertexNormals();
+    const mat = new THREE.MeshStandardMaterial({ color, roughness: 0.95, flatShading: true });
+    const rock = new THREE.Mesh(geo, mat);
+    rock.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI);
+    rock.scale.set(1, 0.6 + Math.random() * 0.4, 1);
+    rock.castShadow = true; rock.receiveShadow = true;
+    return rock;
+}
+function makeCactus(scale = 1) {
+    const g = new THREE.Group();
+    const mat = new THREE.MeshStandardMaterial({ color: 0x3a6a25, roughness: 0.85 });
+    const body = new THREE.Mesh(new THREE.CylinderGeometry(0.2 * scale, 0.25 * scale, 2 * scale, 8), mat);
+    body.position.y = 1 * scale; body.castShadow = true; g.add(body);
+    const arm1 = new THREE.Mesh(new THREE.CylinderGeometry(0.1 * scale, 0.13 * scale, 0.9 * scale, 6), mat);
+    arm1.position.set(0.32 * scale, 1.1 * scale, 0);
+    arm1.rotation.z = -0.5; arm1.castShadow = true; g.add(arm1);
+    const arm2 = new THREE.Mesh(new THREE.CylinderGeometry(0.08 * scale, 0.11 * scale, 0.7 * scale, 6), mat);
+    arm2.position.set(-0.28 * scale, 1.4 * scale, 0.1 * scale);
+    arm2.rotation.z = 0.4; arm2.castShadow = true; g.add(arm2);
+    return g;
+}
+function makeSunDisc(color, size, position) {
+    const geo = new THREE.SphereGeometry(size, 24, 24);
+    const mat = new THREE.MeshBasicMaterial({ color, fog: false, transparent: true, opacity: 0.95 });
+    const sun = new THREE.Mesh(geo, mat);
+    sun.position.copy(position);
+    return sun;
+}
+function makeStars() {
+    const geo = new THREE.BufferGeometry();
+    const pos = [];
+    for (let i = 0; i < 3000; i++) {
+        const theta = Math.random() * Math.PI * 2;
+        const phi = Math.acos(2 * Math.random() - 1);
+        const r = 320 + Math.random() * 80;
+        const x = r * Math.sin(phi) * Math.cos(theta);
+        const y = Math.abs(r * Math.cos(phi)) * 0.9 + 50;
+        const z = r * Math.sin(phi) * Math.sin(theta);
+        pos.push(x, y, z);
+    }
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    return new THREE.Points(geo, new THREE.PointsMaterial({ color: 0xffffff, size: 1.6, sizeAttenuation: true, transparent: true, opacity: 0.9 }));
+}
+
+function makeFireflies(count = 250) {
+    const geo = new THREE.BufferGeometry();
+    const pos = new Float32Array(count * 3);
+    const phase = new Float32Array(count);
+    for (let i = 0; i < count; i++) {
+        const a = Math.random() * Math.PI * 2;
+        const r = 2 + Math.random() * 20;
+        pos[i*3] = Math.cos(a) * r;
+        pos[i*3+1] = 0.5 + Math.random() * 4;
+        pos[i*3+2] = Math.sin(a) * r;
+        phase[i] = Math.random() * Math.PI * 2;
+    }
+    geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    geo.setAttribute('phase', new THREE.BufferAttribute(phase, 1));
+    const mat = new THREE.PointsMaterial({ color: 0xffee88, size: 0.12, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, sizeAttenuation: true, depthWrite: false });
+    const points = new THREE.Points(geo, mat);
+    points.userData.animate = (t) => {
+        const p = geo.attributes.position.array;
+        const ph = geo.attributes.phase.array;
+        for (let i = 0; i < count; i++) {
+            p[i*3+1] = 0.5 + Math.sin(t * 0.7 + ph[i]) * 1.2 + 1.8;
+        }
+        geo.attributes.position.needsUpdate = true;
+    };
+    return points;
+}
+function makeDust(count = 400) {
+    const geo = new THREE.BufferGeometry();
+    const pos = new Float32Array(count * 3);
+    for (let i = 0; i < count; i++) {
+        pos[i*3] = (Math.random() - 0.5) * 60;
+        pos[i*3+1] = Math.random() * 8;
+        pos[i*3+2] = (Math.random() - 0.5) * 60;
+    }
+    geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    const mat = new THREE.PointsMaterial({ color: 0xd8c090, size: 0.08, transparent: true, opacity: 0.5, depthWrite: false });
+    const points = new THREE.Points(geo, mat);
+    points.userData.animate = (t) => {
+        const p = geo.attributes.position.array;
+        for (let i = 0; i < count; i++) {
+            p[i*3] += Math.sin(t * 0.3 + i) * 0.01;
+            p[i*3+1] += Math.cos(t * 0.5 + i * 0.7) * 0.005;
+        }
+        geo.attributes.position.needsUpdate = true;
+    };
+    return points;
+}
+function makeFogParticles(count = 150) {
+    const geo = new THREE.BufferGeometry();
+    const pos = new Float32Array(count * 3);
+    for (let i = 0; i < count; i++) {
+        pos[i*3] = (Math.random() - 0.5) * 40;
+        pos[i*3+1] = 0.3 + Math.random() * 3;
+        pos[i*3+2] = (Math.random() - 0.5) * 40;
+    }
+    geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    const mat = new THREE.PointsMaterial({ color: 0x505050, size: 0.8, transparent: true, opacity: 0.15, depthWrite: false });
+    const points = new THREE.Points(geo, mat);
+    points.userData.animate = (t) => {
+        const p = geo.attributes.position.array;
+        for (let i = 0; i < count; i++) {
+            p[i*3] += Math.sin(t * 0.2 + i * 0.5) * 0.02;
+            p[i*3+2] += Math.cos(t * 0.15 + i * 0.3) * 0.02;
+        }
+        geo.attributes.position.needsUpdate = true;
+    };
+    return points;
+}
+
+function buildDecorations(type, groundY) {
+    const group = new THREE.Group();
+    envParticles = [];
+    if (type === 'meadow') {
+        for (let i = 0; i < 20; i++) {
+            const a = (i / 20) * Math.PI * 2 + Math.random() * 0.3;
+            const r = 22 + Math.random() * 45;
+            const t = makeTree(0.7 + Math.random() * 0.7);
+            t.position.set(Math.cos(a) * r, groundY, Math.sin(a) * r);
+            group.add(t);
+        }
+        for (let i = 0; i < 10; i++) {
+            const a = Math.random() * Math.PI * 2;
+            const r = 6 + Math.random() * 18;
+            const rock = makeRock(0.3 + Math.random() * 0.4, 0x707868);
+            rock.position.set(Math.cos(a) * r, groundY, Math.sin(a) * r);
+            group.add(rock);
+        }
+        group.add(makeSunDisc(0xfff8e0, 8, new THREE.Vector3(150, 180, -100)));
+        const flies = makeFireflies(80);
+        group.add(flies); envParticles.push(flies);
+    } else if (type === 'horror') {
+        for (let i = 0; i < 16; i++) {
+            const a = Math.random() * Math.PI * 2;
+            const r = 12 + Math.random() * 28;
+            const t = makeDeadTree(0.6 + Math.random() * 0.6);
+            t.position.set(Math.cos(a) * r, groundY, Math.sin(a) * r);
+            group.add(t);
+        }
+        for (let i = 0; i < 12; i++) {
+            const a = Math.random() * Math.PI * 2;
+            const r = 4 + Math.random() * 14;
+            const rock = makeRock(0.2 + Math.random() * 0.4, 0x2a1510);
+            rock.position.set(Math.cos(a) * r, groundY, Math.sin(a) * r);
+            group.add(rock);
+        }
+        group.add(makeSunDisc(0xff3030, 10, new THREE.Vector3(80, 100, -60)));
+        const fog = makeFogParticles(200);
+        group.add(fog); envParticles.push(fog);
+    } else if (type === 'sunset') {
+        for (let i = 0; i < 8; i++) {
+            const a = Math.random() * Math.PI * 2;
+            const r = 20 + Math.random() * 40;
+            const t = makeTree(0.5 + Math.random() * 0.5, 0x2a3010, 0x2a1510);
+            t.position.set(Math.cos(a) * r, groundY, Math.sin(a) * r);
+            group.add(t);
+        }
+        group.add(makeSunDisc(0xffb040, 18, new THREE.Vector3(180, 25, -100)));
+    } else if (type === 'night') {
+        group.add(makeStars());
+        for (let i = 0; i < 8; i++) {
+            const a = Math.random() * Math.PI * 2;
+            const r = 18 + Math.random() * 30;
+            const t = makeTree(0.5 + Math.random() * 0.5, 0x0a2010, 0x0a0808);
+            t.position.set(Math.cos(a) * r, groundY, Math.sin(a) * r);
+            group.add(t);
+        }
+        group.add(makeSunDisc(0xd8e0ff, 12, new THREE.Vector3(90, 110, -70)));
+        const flies = makeFireflies(300);
+        group.add(flies); envParticles.push(flies);
+    } else if (type === 'desert') {
+        for (let i = 0; i < 8; i++) {
+            const a = Math.random() * Math.PI * 2;
+            const r = 10 + Math.random() * 22;
+            const c = makeCactus(0.6 + Math.random() * 0.6);
+            c.position.set(Math.cos(a) * r, groundY, Math.sin(a) * r);
+            group.add(c);
+        }
+        for (let i = 0; i < 8; i++) {
+            const a = Math.random() * Math.PI * 2;
+            const r = 5 + Math.random() * 15;
+            const rock = makeRock(0.3 + Math.random() * 0.4, 0xa88850);
+            rock.position.set(Math.cos(a) * r, groundY, Math.sin(a) * r);
+            group.add(rock);
+        }
+        group.add(makeSunDisc(0xfff0c0, 10, new THREE.Vector3(160, 140, -80)));
+        const dust = makeDust(300);
+        group.add(dust); envParticles.push(dust);
+    }
+    scene.add(group);
+    envDecorations.push(group);
+}
+
+function clearEnvironment() {
+    envDecorations.forEach(d => {
+        scene.remove(d);
+        d.traverse(o => {
+            if (o.geometry) o.geometry.dispose();
+            if (o.material) {
+                if (Array.isArray(o.material)) o.material.forEach(m => m.dispose());
+                else o.material.dispose();
+            }
+        });
+    });
+    envDecorations = [];
+    envParticles = [];
+    if (envGround) { scene.remove(envGround); envGround.geometry.dispose(); envGround.material.dispose(); envGround = null; }
+    if (envSky) { scene.remove(envSky); envSky.geometry.dispose(); envSky.material.dispose(); envSky = null; }
+    scene.fog = null;
+}
+
+function applyEnvironment(key) {
+    const env = ENV_DEFS[key];
+    if (!env) return;
+    clearEnvironment();
+    currentEnv = key; state.currentEnvKey = key;
+
+    scene.background = new THREE.Color(env.bg);
+    if (env.fog) scene.fog = new THREE.Fog(env.fog.c, env.fog.n, env.fog.f);
+
+    ambientLight.color.setHex(0xffffff); ambientLight.intensity = env.ambient.i * lighting.ambMult;
+    hemiLight.color.setHex(0xffffff); hemiLight.groundColor.setHex(0x404050); hemiLight.intensity = env.hemi.i;
+    keyLight.color.setHex(0xffffff); keyLight.intensity = env.sun.i * lighting.sunMult; keyLight.position.set(...env.sun.p);
+    fillLight.color.setHex(0xffffff); fillLight.intensity = env.fill.i * lighting.fillMult; fillLight.position.set(...env.fill.p);
+    rimLight.color.setHex(0xffffff); rimLight.intensity = env.rim.i * lighting.rimMult; rimLight.position.set(...env.rim.p);
+
+    grid.visible = $('toggleGrid').checked;
+
+    if (env.skyType === 'gradient') { envSky = makeGradientSky(env.skyTop, env.skyBottom); scene.add(envSky); }
+
+    let groundY = 0;
+    if (state.model) { const b = new THREE.Box3().setFromObject(state.model); groundY = b.min.y; }
+
+    if (env.ground && state.model) {
+        envGround = new THREE.Mesh(
+            new THREE.PlaneGeometry(env.ground.size, env.ground.size, 1, 1),
+            new THREE.MeshStandardMaterial({ color: env.ground.color, roughness: 0.95, metalness: 0 })
+        );
+        envGround.rotation.x = -Math.PI / 2;
+        envGround.position.y = groundY - 0.02;
+        envGround.receiveShadow = true;
+        scene.add(envGround);
+    }
+
+    if (env.decorations) buildDecorations(env.decorations, groundY);
+
+    $('envInfo').textContent = env.name;
+    toast(env.name, 'success');
+}
+
+// ═══════ STATE & UNDO/REDO ═══════
+const state = {
+    model: null, groups: new Map(), fileMap: new Map(),
+    bones: [], boneMap: new Map(), nameToBone: new Map(),
+    bindPose: new Map(), mirrorPairs: new Map(), manualPairs: new Map(),
+    skinnedMeshes: [], skelHelper: null,
+    clips: [{ name: 'کلیپ ۱', tracks: {}, interp: 'smooth' }],
+    currentClipIdx: 0, currentTime: 0, playing: false, loop: true,
+    duration: 5, fps: 24,
+    camKeys: [], camEnabled: false, camInterp: 'smooth',
+    selectedBone: null, autoKey: true, propagateKey: false,
+    transformMode: 'rotate', pickingMode: false, smartSelect: false, childCycleIdx: 0,
+    mirrorMode: false, mirrorAxis: 'x', mirrorSubtree: true,
+    onionSkinEnabled: false, onionFrames: 1,
+    snapFrame: true, interpMode: 'smooth',
+    recorder: null, recordedChunks: [], isRecording: false,
+    lastAppliedTime: -1, lastAppliedDirty: true,
+    playStartReal: 0, playStartTime: 0,
+    currentEnvKey: 'studio',
+    faNames: false,
+    selectedKeyframeTime: null,
+    copiedKeyframes: null
+};
+
+// Persian Dictionary
+const FA_BONES = {
+    "pelvis": "لگن", "hips": "لگن", "spine": "ستون فقرات", "chest": "سینه", "neck": "گردن", "head": "سر",
+    "root": "ریشه", "origin": "مبدا", "camera": "دوربین", "weapon": "سلاح", "shield": "سپر", "prop": "شیء", "attach": "اتصال",
+    "clavicle": "ترقوه", "shoulder": "شانه", "upperarm": "بازوی بالا", "forearm": "ساعد", "lowerarm": "ساعد", "hand": "دست",
+    "thigh": "ران", "calf": "ساق", "leg": "پا", "foot": "کف پا", "toe": "انگشت پا",
+    "finger": "انگشت", "thumb": "شست", "index": "اشاره", "middle": "میانی", "ring": "حلقه", "pinky": "کوچک",
+    "l": "چپ", "r": "راست", "left": "چپ", "right": "راست", "bip01": "دوپا", "valvebiped": "",
+    "spine1": "ستون ۱", "spine2": "ستون ۲", "spine3": "ستون ۳", "spine4": "ستون ۴"
+};
+function getFaName(engName) {
+    if (!state.faNames || !engName) return engName;
+    let lower = engName.toLowerCase();
+    lower = lower.replace(/valvebiped\.?/g, '').replace(/bip01\.?/g, '').replace(/bip001\.?/g, '');
+    const parts = lower.split(/[_\.\s]+/).filter(p => p);
+    const faParts = parts.map(p => {
+        if (FA_BONES[p]) return FA_BONES[p];
+        const numMatch = p.match(/^(.*?)(\d+)$/);
+        if (numMatch && FA_BONES[numMatch[1]]) return FA_BONES[numMatch[1]] + ' ' + numMatch[2];
+        return p;
+    });
+    return faParts.join(' ');
+}
+
+let isUndoRedoAction = false;
+const undoStack = [];
+const redoStack = [];
+const MAX_UNDO = 50;
+
+function captureSnapshot() {
+    return JSON.stringify({
+        clips: state.clips,
+        currentClipIdx: state.currentClipIdx,
+        bones: state.bones.map(b => ({
+            uuid: b.uuid,
+            p: [b.position.x, b.position.y, b.position.z],
+            q: [b.quaternion.x, b.quaternion.y, b.quaternion.z, b.quaternion.w],
+            s: [b.scale.x, b.scale.y, b.scale.z]
+        }))
+    });
+}
+
+function pushUndo() {
+    if (isUndoRedoAction) return;
+    undoStack.push(captureSnapshot());
+    if (undoStack.length > MAX_UNDO) undoStack.shift();
+    redoStack.length = 0;
+    updateUndoRedoUI();
+}
+
+function undo() {
+    if (undoStack.length === 0) return;
+    const current = captureSnapshot();
+    const prev = JSON.parse(undoStack.pop());
+    redoStack.push(current);
+    restoreSnapshot(prev);
+    updateUndoRedoUI();
+    toast('Undo', 'info');
+}
+
+function redo() {
+    if (redoStack.length === 0) return;
+    const current = captureSnapshot();
+    const next = JSON.parse(redoStack.pop());
+    undoStack.push(current);
+    restoreSnapshot(next);
+    updateUndoRedoUI();
+    toast('Redo', 'info');
+}
+
+function restoreSnapshot(snap) {
+    isUndoRedoAction = true;
+    state.clips = snap.clips;
+    state.currentClipIdx = snap.currentClipIdx;
+    for (const bData of snap.bones) {
+        const b = state.boneMap.get(bData.uuid);
+        if (b) {
+            b.position.fromArray(bData.p);
+            b.quaternion.fromArray(bData.q);
+            b.scale.fromArray(bData.s);
+            b.updateMatrix();
+        }
+    }
+    syncSkeletons();
+    refreshMarkers();
+    applyTime(state.currentTime, true);
+    isUndoRedoAction = false;
+}
+
+function updateUndoRedoUI() {
+    $('undoBtn').disabled = undoStack.length === 0;
+    $('redoBtn').disabled = redoStack.length === 0;
+}
+
+$('undoBtn').addEventListener('click', undo);
+$('redoBtn').addEventListener('click', redo);
+
+window.addEventListener('keydown', e => {
+    if (e.ctrlKey || e.metaKey) {
+        if (e.code === 'KeyZ') { e.preventDefault(); if (e.shiftKey) redo(); else undo(); }
+        if (e.code === 'KeyY') { e.preventDefault(); redo(); }
+    }
+});
+
+// ═══════ GENERAL STATE HELPERS ═══════
+let sceneDirty = true, isDraggingGizmo = false, applyingMirror = false, orbitDragging = false;
+let overlaysHidden = false;
+const clock = new THREE.Clock();
+const raycaster = new THREE.Raycaster();
+const pointer = new THREE.Vector2();
+const _v1 = new THREE.Vector3(), _v2 = new THREE.Vector3();
+const _q1 = new THREE.Quaternion(), _q2 = new THREE.Quaternion();
+
+function snapTime(t) { return Math.floor(t * state.fps + 0.0001) / state.fps; }
+function syncSkeletons() {
+    scene.updateMatrixWorld(true);
+    for (const sm of state.skinnedMeshes) { if (sm.skeleton) sm.skeleton.update(); }
+    if (state.skelHelper) state.skelHelper.updateMatrixWorld(true);
+}
+
+function hideOverlaysForOutput() {
+    overlaysHidden = true;
+    boneHL.visible = false;
+    if (onionPrev) onionPrev.visible = false;
+    if (onionNext) onionNext.visible = false;
+    if (state.skelHelper) state.skelHelper.visible = false;
+    grid.visible = false;
+    tControls.detach(); tControls.enabled = false;
+}
+
+function restoreOverlaysAfterOutput() {
+    overlaysHidden = false;
+    if (state.selectedBone) {
+        boneHL.visible = true;
+        tControls.attach(state.selectedBone);
+        tControls.enabled = !isDraggingGizmo;
+    }
+    if (onionPrev) onionPrev.visible = state.onionSkinEnabled;
+    if (onionNext) onionNext.visible = state.onionSkinEnabled;
+    if (state.skelHelper) state.skelHelper.visible = $('toggleSkel').checked;
+    grid.visible = $('toggleGrid').checked;
+}
+
+// ═══════ HIERARCHY ═══════
+const hierarchy = {
+    _dc: new Map(), _dp: new Map(),
+    invalidate() { this._dc.clear(); this._dp.clear(); },
+    getDirectChildren(bone) {
+        const r = [];
+        for (const c of bone.children) {
+            if (c.isBone) r.push(c);
+            else if (c.children?.length > 0) r.push(...this.getDirectChildren(c));
+        }
+        return r;
+    },
+    getParentBone(bone) { let p = bone.parent; while (p) { if (p.isBone) return p; p = p.parent; } return null; },
+    getDescendants(bone) {
+        if (this._dc.has(bone.uuid)) return this._dc.get(bone.uuid);
+        const result = []; const stack = [...this.getDirectChildren(bone)];
+        while (stack.length) { const b = stack.pop(); result.push(b); stack.push(...this.getDirectChildren(b)); }
+        this._dc.set(bone.uuid, result); return result;
+    },
+    getDepth(bone) { if (this._dp.has(bone.uuid)) return this._dp.get(bone.uuid); let d = 0, p = bone.parent; while (p) { if (p.isBone) d++; p = p.parent; } this._dp.set(bone.uuid, d); return d; },
+    isLeaf(bone) { return this.getDirectChildren(bone).length === 0; },
+    isRoot(bone) { return !this.getParentBone(bone); },
+};
+
+// ═══════ FILE HELPERS ═══════
+const isTex = n => /\.(png|jpg|jpeg|tga|bmp|dds|webp)$/i.test(n);
+const isFBX = n => /\.fbx$/i.test(n);
+const CATS = ['color', 'normal', 'mask1', 'mask2', 'ao', 'exponent', 'emissive', 'alpha'];
+const PATTERNS = { color: ['_color', '_diffuse', '_albedo', '_bc', '_d.'], normal: ['_normal', '_nrm', '_n.'], mask1: ['_mask1', '_m1'], mask2: ['_mask2', '_m2'], ao: ['_ao', '_ambient'], exponent: ['_exponent', '_spec'], emissive: ['_emissive', '_glow'], alpha: ['_alpha', '_trans'] };
+function getCat(n) { const l = n.toLowerCase(); for (const [c, p] of Object.entries(PATTERNS)) if (p.some(x => l.includes(x))) return c; return null; }
+function getBaseName(f) { return f.toLowerCase().replace(/\.(png|jpg|jpeg|tga|bmp|dds|webp)$/i, '').replace(/_(color|diffuse|albedo|bc|d\.|normal|nrm|n\.|mask1|m1|mask2|m2|ao|ambient|exponent|spec|emissive|glow|alpha|trans)$/i, ''); }
+function getMeshBase(n) { return !n ? '' : n.toLowerCase().replace(/\.\d+$/, '').replace(/_mat$/, '').replace(/_mesh$/, '').replace(/^mesh_/, ''); }
+function buildGroups(files) { const g = new Map(); for (const f of files) { const c = getCat(f); if (!c) continue; const b = getBaseName(f); if (!g.has(b)) { const x = {}; CATS.forEach(cc => x[cc] = []); g.set(b, x); } g.get(b)[c].push(f); } return g; }
+function pickBest(files) { if (!files?.length) return null; for (const ext of ['.png', '.tga', '.jpg', '.jpeg']) { const f = files.find(n => n.toLowerCase().endsWith(ext)); if (f) return f; } return files[0]; }
+function findGroup(mn, matn, g) { const c = [getMeshBase(mn), getMeshBase(matn)].filter(Boolean); for (const x of c) if (g.has(x)) return x; for (const x of c) { if (x.length < 3) continue; for (const [b] of g) if (b.includes(x) || x.includes(b)) return b; } let best = null, max = 0; for (const [b, gg] of g) { const s = Object.values(gg).reduce((a, ar) => a + ar.length, 0); if (s > max) { max = s; best = b; } } return best; }
+function makeLoader() { const mgr = new THREE.LoadingManager(); mgr.setURLModifier(url => { if (url.startsWith('blob:') || url.startsWith('data:')) return url; const n = decodeURIComponent(url.split(/[\\/]/).pop().split('?')[0]); return state.fileMap.get(n) || state.fileMap.get(n.toLowerCase()) || url; }); try { mgr.addHandler(/\.tga$/i, new TGALoader(mgr)); } catch (e) {} return mgr; }
+function loadFBX(name) { return new Promise((res, rej) => { const url = state.fileMap.get(name) || state.fileMap.get(name.toLowerCase()); if (!url) { rej(new Error('URL not found: ' + name)); return; } new FBXLoader(makeLoader()).load(url, res, undefined, rej); }); }
+
+// ═══════ LOAD ═══════
+$('folderInput').addEventListener('change', async e => {
+    const files = Array.from(e.target.files); if (!files.length) return;
+    try {
+        state.fileMap.clear(); clearModel();
+        setStatus(`پردازش ${files.length} فایل...`);
+        for (const f of files) { const url = URL.createObjectURL(f); state.fileMap.set(f.name, url); state.fileMap.set(f.name.toLowerCase(), url); }
+        const fbxs = files.filter(f => isFBX(f.name));
+        const textures = files.filter(f => isTex(f.name)).map(f => f.name);
+        if (!fbxs.length) { setStatus('FBX یافت نشد', 'err'); return; }
+        state.groups = buildGroups(textures);
+        await loadAllFBX(fbxs.map(f => f.name));
+    } catch (err) { console.error(err); setStatus(`${err.message}`, 'err'); }
+});
+
+async function loadAllFBX(names) {
+    const loaded = [];
+    for (const name of names) {
+        try {
+            const obj = await loadFBX(name);
+            let m = 0, b = 0, v = 0;
+            obj.traverse(c => { if (c.isMesh) { m++; v += c.geometry?.attributes?.position?.count || 0; } if (c.isBone) b++; });
+            loaded.push({ name, obj, meshes: m, bones: b, verts: v, anims: obj.animations?.length || 0 });
+        } catch (err) { console.warn(`[FBX] ${name}:`, err.message); }
+    }
+    if (!loaded.length) { setStatus('هیچ FBX لود نشد', 'err'); return; }
+    let main = loaded[0], bestScore = 0;
+    for (const e of loaded) { const s = (e.verts + 5000) * (e.meshes > 0 ? 1 : 0) + e.bones * 100; if (s > bestScore) { bestScore = s; main = e; } }
+    const mergedAnims = []; const seen = new Set();
+    for (const e of loaded) for (const a of e.obj.animations || []) { const k = a.name || a.uuid; if (!seen.has(k)) { seen.add(k); mergedAnims.push(a); } }
+    await processModel(main.obj, state.groups);
+    setupBones();
+    if (mergedAnims.length > 0) importFBXAnimations(mergedAnims);
+    fitCamera(main.obj);
+    applyEnvironment(state.currentEnvKey);
+    let mc = 0, bc = 0;
+    main.obj.traverse(c => { if (c.isMesh) mc++; if (c.isBone) bc++; });
+    setStatus(`${mc} مش، ${bc} استخوان، ${mergedAnims.length} انیمیشن`, 'ok');
+    if ($('autoFix').checked) setTimeout(() => { try { mergeSkeletons(true); rebuildHierarchy(true); } catch (e) { console.error(e); } }, 200);
+}
+
+async function processModel(obj, groups) {
+    const root = new THREE.Group();
+    root.add(obj); scene.add(root); state.model = root;
+    
+    const box = new THREE.Box3().setFromObject(obj);
+    const center = box.getCenter(new THREE.Vector3());
+    const size = box.getSize(new THREE.Vector3());
+    const maxDim = Math.max(size.x, size.y, size.z);
+    
+    const scaleFactor = 1.0 / (maxDim || 1);
+    root.scale.set(scaleFactor, scaleFactor, scaleFactor);
+    root.position.copy(center).multiplyScalar(-scaleFactor);
+    root.updateMatrixWorld(true);
+
+    obj.traverse(c => {
+        if (c.isSkinnedMesh) { c.bindMode = THREE.AttachedBindMode; c.frustumCulled = false; }
+        if (c.isBone) { c.matrixAutoUpdate = true; c.matrixWorldAutoUpdate = true; }
+    });
+    const texLoader = new THREE.TextureLoader(); const tgaLoader = new TGALoader(); const cache = new Map();
+    const loadTex = async (fname, cs) => { if (!fname) return null; const url = state.fileMap.get(fname) || state.fileMap.get(fname.toLowerCase()); if (!url) return null; const loader = fname.toLowerCase().endsWith('.tga') ? tgaLoader : texLoader; return new Promise(res => { loader.load(url, t => { t.colorSpace = cs; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 8; res(t); }, undefined, () => res(null)); }); };
+    const loadGroup = async (base, g) => { const r = {}; if (!g) return r; for (const cat of CATS) { const k = `${base}_${cat}`; if (cache.has(k)) { r[cat] = cache.get(k); continue; } const best = pickBest(g[cat]); const cs = (cat === 'color' || cat === 'emissive') ? THREE.SRGBColorSpace : THREE.NoColorSpace; const t = await loadTex(best, cs); cache.set(k, t); r[cat] = t; } return r; };
+    const meshes = []; obj.traverse(c => { if (c.isMesh) meshes.push(c); });
+    meshes.forEach(m => { if (m.geometry?.attributes.uv && !m.geometry.attributes.uv2) m.geometry.setAttribute('uv2', m.geometry.attributes.uv.clone()); });
+    const infos = [];
+    for (const m of meshes) { const old = Array.isArray(m.material) ? m.material : [m.material]; const mn = old[0]?.name || ''; const gb = findGroup(m.name, mn, groups); infos.push({ m, mn, gb, old }); }
+    const uniques = new Set(infos.map(i => i.gb).filter(Boolean));
+    const texCache = new Map();
+    await Promise.all(Array.from(uniques).map(async b => { texCache.set(b, await loadGroup(b, groups.get(b))); }));
+    for (const { m, mn, gb, old } of infos) {
+        const tex = (gb && texCache.get(gb)) || {};
+        const low = (m.name + ' ' + mn).toLowerCase();
+        const isEye = /\beye|glow|pupil\b/i.test(low); const isMouth = /\bmouth|tongue|inner|gum\b/i.test(low);
+        const newMats = old.map(() => {
+            const mat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.8, metalness: 0.1, envMapIntensity: 0.5, side: THREE.DoubleSide });
+            if (tex.color) mat.map = tex.color;
+            if (tex.normal) mat.normalMap = tex.normal;
+            if (isEye) { mat.emissive = new THREE.Color(0xffffaa); mat.emissiveIntensity = 1.5; if (tex.color) { mat.emissiveMap = tex.color; mat.emissive = new THREE.Color(0xffffff); } }
+            return mat;
+        });
+        m.material = Array.isArray(m.material) ? newMats : newMats[0];
+        m.castShadow = true; m.receiveShadow = true;
+    }
+    state.skinnedMeshes = meshes.filter(m => m.isSkinnedMesh);
+}
+
+function setupBones() {
+    state.bones = []; state.boneMap.clear(); state.nameToBone.clear(); state.bindPose.clear(); state.manualPairs.clear();
+    hierarchy.invalidate();
+    state.model.updateMatrixWorld(true);
+    const set = new Set();
+    state.model.traverse(c => { if (c.isBone) set.add(c); }); 
+    state.model.traverse(c => { if (c.isSkinnedMesh && c.skeleton) { for (const b of c.skeleton.bones) set.add(b); } });
+    state.bones = Array.from(set);
+    for (const b of state.bones) {
+        b.matrixAutoUpdate = true; b.matrixWorldAutoUpdate = true;
+        state.boneMap.set(b.uuid, b); state.nameToBone.set(b.name, b);
+        state.bindPose.set(b.uuid, { 
+            position: b.position.clone(), 
+            quaternion: b.quaternion.clone(), 
+            scale: b.scale.clone(),
+            matrixWorld: b.matrixWorld.clone()
+        });
+    }
+    detectMirrorPairs(); rebuildBoneSelect(); rebuildManualSelects();
+    if (state.skelHelper) scene.remove(state.skelHelper);
+    if ($('toggleSkel').checked) createSkelHelper();
+    updateMirrorUI(); syncSkeletons();
+}
+
+function createSkelHelper() {
+    if (state.skelHelper) scene.remove(state.skelHelper);
+    state.skelHelper = new THREE.SkeletonHelper(state.model);
+    state.skelHelper.material.linewidth = 2;
+    state.skelHelper.visible = !overlaysHidden;
+    scene.add(state.skelHelper);
+}
+
+// ═══════ MIRROR ═══════
+function detectMirrorPairs() {
+    state.mirrorPairs.clear();
+    const byName = new Map(); for (const b of state.bones) byName.set(b.name, b);
+    const patterns = [
+        [/ValveBiped\.Bip01_L_/g, 'ValveBiped.Bip01_R_'], [/ValveBiped\.Bip01_R_/g, 'ValveBiped.Bip01_L_'],
+        [/\bBip01_L_/g, 'Bip01_R_'], [/\bBip01_R_/g, 'Bip01_L_'],
+        [/\bBip01_L$/g, 'Bip01_R'], [/\bBip01_R$/g, 'Bip01_L'],
+        [/\.L\.(\d+)$/g, '.R.$1'], [/\.R\.(\d+)$/g, '.L.$1'],
+        [/\.L$/g, '.R'], [/\.R$/g, '.L'], [/\.l$/g, '.r'], [/\.r$/g, '.l'],
+        [/_L$/g, '_R'], [/_R$/g, '_L'], [/_l$/g, '_r'], [/_r$/g, '_l'],
+        [/_L_/g, '_R_'], [/_R_/g, '_L_'], [/_l_/g, '_r_'], [/_r_/g, '_l_'],
+        [/^L_/g, 'R_'], [/^R_/g, 'L_'], [/^l_/g, 'r_'], [/^r_/g, 'l_'],
+        [/_Left$/g, '_Right'], [/_Right$/g, '_Left'], [/^Left_/g, 'Right_'], [/^Right_/g, 'Left_'],
+        [/_left$/g, '_right'], [/_right$/g, '_left'], [/^left_/g, 'right_'], [/^right_/g, 'left_'],
+        [/Left/g, 'Right'], [/Right/g, 'Left'],
+    ];
+    for (const bone of state.bones) {
+        if (state.mirrorPairs.has(bone.uuid)) continue;
+        for (const [re, rep] of patterns) {
+            re.lastIndex = 0;
+            if (re.test(bone.name)) {
+                re.lastIndex = 0;
+                const otherName = bone.name.replace(re, rep);
+                if (otherName === bone.name) continue;
+                const other = byName.get(otherName);
+                if (other && other.uuid !== bone.uuid) {
+                    state.mirrorPairs.set(bone.uuid, other.uuid);
+                    state.mirrorPairs.set(other.uuid, bone.uuid);
+                    break;
+                }
+            }
+        }
+    }
+    for (const [a, b] of state.manualPairs) { state.mirrorPairs.set(a, b); state.mirrorPairs.set(b, a); }
+}
+function getMirrorBone(bone) { if (!bone) return null; const u = state.mirrorPairs.get(bone.uuid); return u ? state.boneMap.get(u) : null; }
+
+function applyTrueMirror(src, tgt, axis) {
+    if (!src || !tgt || src === tgt) return false;
+    
+    const srcBind = state.bindPose.get(src.uuid);
+    const tgtBind = state.bindPose.get(tgt.uuid);
+    if (!srcBind || !tgtBind || !srcBind.matrixWorld || !tgtBind.matrixWorld) return false;
+
+    src.updateWorldMatrix(true, false);
+    const deltaWorld = new THREE.Matrix4().multiplyMatrices(
+        src.matrixWorld,
+        new THREE.Matrix4().copy(srcBind.matrixWorld).invert()
+    );
+
+    const reflect = new THREE.Matrix4();
+    if (axis === 'x') reflect.makeScale(-1, 1, 1);
+    else if (axis === 'y') reflect.makeScale(1, -1, 1);
+    else if (axis === 'z') reflect.makeScale(1, 1, -1);
+    else if (axis === 'all') reflect.makeScale(-1, -1, -1);
+
+    const deltaWorldReflected = new THREE.Matrix4().multiplyMatrices(
+        reflect,
+        deltaWorld
+    ).multiply(reflect);
+
+    const targetWorld = new THREE.Matrix4().multiplyMatrices(
+        deltaWorldReflected,
+        tgtBind.matrixWorld
+    );
+
+    if (tgt.parent) {
+        tgt.parent.updateWorldMatrix(true, false);
+        const parentInv = new THREE.Matrix4().copy(tgt.parent.matrixWorld).invert();
+        targetWorld.premultiply(parentInv);
+    }
+
+    targetWorld.decompose(tgt.position, tgt.quaternion, tgt.scale);
+    
+    tgt.scale.set(Math.abs(tgt.scale.x), Math.abs(tgt.scale.y), Math.abs(tgt.scale.z));
+    
+    tgt.updateMatrix();
+    return true;
+}
+function mirrorSubtreeRec(bone, axis, includeRoot = true) {
+    if (!bone) return 0;
+    const list = includeRoot ? [bone, ...hierarchy.getDescendants(bone)] : hierarchy.getDescendants(bone);
+    list.sort((a, b) => hierarchy.getDepth(a) - hierarchy.getDepth(b));
+    let n = 0;
+    for (const src of list) {
+        const tgt = getMirrorBone(src);
+        if (tgt && applyTrueMirror(src, tgt, axis)) {
+            n++;
+            tgt.updateWorldMatrix(false, true);
+        }
+    }
+    return n;
+}
+function applyMirrorDuringDrag() {
+    if (!state.mirrorMode || !state.selectedBone) return;
+    applyingMirror = true;
+    try {
+        if (state.mirrorSubtree) mirrorSubtreeRec(state.selectedBone, state.mirrorAxis, true);
+        else { const mb = getMirrorBone(state.selectedBone); if (mb) { applyTrueMirror(state.selectedBone, mb, state.mirrorAxis); mb.updateWorldMatrix(false, true); } }
+    } finally { applyingMirror = false; }
+}
+function updateMirrorUI() { updateMirrorStatus(); }
+function updateMirrorStatus() {
+    const el = $('keyInfo');
+    if (!state.selectedBone) { el.innerHTML = '<span class="val">-</span>'; return; }
+    const clip = getCurrentClip();
+    const t = clip.tracks[state.selectedBone.uuid];
+    if (!t) { el.innerHTML = `<span class="val" style="color:var(--yellow);">0</span>`; return; }
+    const mb = getMirrorBone(state.selectedBone);
+    const mt = mb ? clip.tracks[mb.uuid] : null;
+    const r = (t.r?.length || 0), mr = (mt?.r?.length || 0);
+    const color = (r >= 2 || mr >= 2) ? 'var(--green)' : 'var(--yellow)';
+    el.innerHTML = `r: <span class="val" style="color:${color};">${r}</span>${mb ? ` | ${mr}` : ''}`;
+}
+
+function rebuildBoneSelect() {
+    const sel = $('boneSelect'); sel.innerHTML = '<option value="">-- استخوان --</option>';
+    const roots = state.bones.filter(b => hierarchy.isRoot(b));
+    const add = (bone, d) => {
+        const opt = document.createElement('option'); opt.value = bone.uuid;
+        const ch = hierarchy.getDirectChildren(bone);
+        const mirrored = state.mirrorPairs.has(bone.uuid) ? ' *' : '';
+        const displayName = getFaName(bone.name);
+        opt.textContent = '\u00A0\u00A0'.repeat(d) + displayName + mirrored;
+        if (state.selectedBone === bone) opt.selected = true;
+        sel.appendChild(opt);
+        for (const c of ch) add(c, d + 1);
+    };
+    for (const r of roots) add(r, 0);
+}
+function rebuildManualSelects() {
+    const p = $('manualParent'), c = $('manualChild');
+    p.innerHTML = '<option value="">والد...</option>'; c.innerHTML = '<option value="">فرزند...</option>';
+    for (const b of state.bones) {
+        const op = document.createElement('option'); op.value = b.uuid; op.textContent = getFaName(b.name); p.appendChild(op);
+        const oc = document.createElement('option'); oc.value = b.uuid; oc.textContent = getFaName(b.name); c.appendChild(oc);
+    }
+}
+function selectBone(bone) {
+    if (!bone) return;
+    state.selectedBone = bone; state.childCycleIdx = 0;
+    tControls.attach(bone); tControls.setMode(state.transformMode); tControls.setSpace('local');
+    $('boneSelect').value = bone.uuid;
+    updateBonePath(); updateMirrorStatus();
+    boneHL.visible = true; sceneDirty = true; refreshMarkers();
+}
+function updateBonePath() {
+    const el = $('bonePath');
+    if (!state.selectedBone) { el.textContent = '-'; return; }
+    const path = []; let b = state.selectedBone; while (b) { if (b.isBone) path.unshift(getFaName(b.name)); b = b.parent; }
+    el.textContent = path.join(' > ');
+}
+$('boneSelect').addEventListener('change', e => { const u = e.target.value; if (!u) { deselectBone(); return; } const b = state.boneMap.get(u); if (b) selectBone(b); });
+function deselectBone() {
+    tControls.detach(); state.selectedBone = null; $('boneSelect').value = '';
+    boneHL.visible = false;
+    updateBonePath(); updateMirrorStatus();
+    controls.enabled = !state.camEnabled && !isDraggingGizmo;
+    sceneDirty = true; refreshMarkers();
+}
+$('deselect').addEventListener('click', deselectBone);
+
+$('toggleSkel').addEventListener('change', e => { if (e.target.checked && state.model) createSkelHelper(); else if (state.skelHelper) { scene.remove(state.skelHelper); state.skelHelper = null; } });
+$('toggleGrid').addEventListener('change', e => { grid.visible = e.target.checked; });
+$('faBoneNames').addEventListener('change', e => { state.faNames = e.target.checked; rebuildBoneSelect(); rebuildManualSelects(); updateBonePath(); });
+document.querySelectorAll('.mode[data-mode]').forEach(b => b.addEventListener('click', () => { document.querySelectorAll('.mode[data-mode]').forEach(x => x.classList.remove('active')); b.classList.add('active'); state.transformMode = b.dataset.mode; if (state.selectedBone) { tControls.setMode(state.transformMode); tControls.setSpace('local'); } }));
+
+// ═══════ ONION SKIN ═══════
+$('onionSkinToggle').addEventListener('change', e => {
+    state.onionSkinEnabled = e.target.checked;
+    setupOnionSkins();
+    updateOnionSkins();
+});
+$('onionFrames').addEventListener('change', e => {
+    state.onionFrames = parseInt(e.target.value);
+    updateOnionSkins();
+});
+
+function setupOnionSkins() {
+    if (!state.model || !state.onionSkinEnabled) {
+        if (onionPrev) { scene.remove(onionPrev); onionPrev = null; onionPrevBones.clear(); }
+        if (onionNext) { scene.remove(onionNext); onionNext = null; onionNextBones.clear(); }
+        return;
+    }
+    
+    if (onionPrev) scene.remove(onionPrev);
+    if (onionNext) scene.remove(onionNext);
+    
+    onionPrev = cloneSkeleton(state.model);
+    onionNext = cloneSkeleton(state.model);
+    
+    const applyGhostMat = (clone, color) => {
+        clone.traverse(c => {
+            if (c.isMesh) {
+                c.material = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.25, depthWrite: false });
+                c.userData.isOnionSkin = true;
+            }
+        });
+    };
+    applyGhostMat(onionPrev, 0x00aaff); 
+    applyGhostMat(onionNext, 0xff5500); 
+    
+    onionPrev.visible = state.onionSkinEnabled;
+    onionNext.visible = state.onionSkinEnabled;
+    scene.add(onionPrev);
+    scene.add(onionNext);
+    
+    onionPrevBones.clear();
+    onionNextBones.clear();
+    state.bones.forEach(b => {
+        const prevB = onionPrev.getObjectByName(b.name);
+        if (prevB) onionPrevBones.set(b.uuid, prevB);
+        const nextB = onionNext.getObjectByName(b.name);
+        if (nextB) onionNextBones.set(b.uuid, nextB);
+    });
+}
+
+function updateOnionSkins() {
+    if (!state.onionSkinEnabled || !onionPrev || !onionNext) return;
+    
+    const dt = 1 / state.fps;
+    const tPrev = Math.max(0, state.currentTime - dt * state.onionFrames);
+    const tNext = Math.min(state.duration, state.currentTime + dt * state.onionFrames);
+    
+    const clip = getCurrentClip();
+    const interp = clip.interp || 'smooth';
+    
+    onionPrevBones.forEach((bone, uuid) => {
+        const tr = clip.tracks[uuid];
+        if (tr) {
+            if (tr.p?.length) sampleVec3(tr.p, tPrev, interp, bone.position);
+            if (tr.r?.length) sampleQuat(tr.r, tPrev, interp, bone.quaternion);
+            if (tr.s?.length) sampleVec3(tr.s, tPrev, interp, bone.scale);
+        }
+    });
+    onionPrev.updateMatrixWorld(true);
+    
+    onionNextBones.forEach((bone, uuid) => {
+        const tr = clip.tracks[uuid];
+        if (tr) {
+            if (tr.p?.length) sampleVec3(tr.p, tNext, interp, bone.position);
+            if (tr.r?.length) sampleQuat(tr.r, tNext, interp, bone.quaternion);
+            if (tr.s?.length) sampleVec3(tr.s, tNext, interp, bone.scale);
+        }
+    });
+    onionNext.updateMatrixWorld(true);
+}
+
+// ═══════ TRANSFORM ═══════
+tControls.addEventListener('dragging-changed', e => {
+    isDraggingGizmo = e.value;
+    controls.enabled = !e.value && !state.camEnabled;
+    if (e.value) pushUndo();
+    
+    if (!e.value && state.selectedBone) {
+        if (state.mirrorMode) applyMirrorDuringDrag();
+        syncSkeletons();
+        if (state.autoKey) {
+            const bones = collectAffected(state.selectedBone);
+            for (const b of bones) captureSingle(b, state.currentTime);
+            state.lastAppliedDirty = true;
+            refreshMarkers(); applyTime(state.currentTime, true);
+        }
+    }
+});
+tControls.addEventListener('objectChange', () => {
+    if (applyingMirror) return;
+    if (state.mirrorMode && state.selectedBone) {
+        state.selectedBone.updateMatrix(); state.selectedBone.updateMatrixWorld(true);
+        applyMirrorDuringDrag();
+    }
+    sceneDirty = true;
+});
+
+function collectAffected(bone) {
+    const bones = new Set();
+    if (!bone) return bones;
+    bones.add(bone);
+    if (state.propagateKey || (state.mirrorMode && state.mirrorSubtree))
+        for (const d of hierarchy.getDescendants(bone)) bones.add(d);
+    if (state.mirrorMode) {
+        const snap = [...bones];
+        for (const b of snap) { const mb = getMirrorBone(b); if (mb && !bones.has(mb)) bones.add(mb); }
+    }
+    return bones;
+}
+
+// ═══════ PICKING ═══════
+$('pickBone').addEventListener('click', () => { state.pickingMode = !state.pickingMode; $('pickBone').classList.toggle('active', state.pickingMode); });
+$('smartSelect').addEventListener('change', e => { state.smartSelect = e.target.checked; });
+$('mirrorMode').addEventListener('change', e => { state.mirrorMode = e.target.checked; sceneDirty = true; });
+
+let pDown = null;
+canvas.addEventListener('pointerdown', e => { if (e.button !== 0 || renderer.xr.isPresenting) return; pDown = { x: e.clientX, y: e.clientY, t: Date.now() }; });
+canvas.addEventListener('pointerup', e => {
+    if (!pDown || renderer.xr.isPresenting) return;
+    const d = (e.clientX - pDown.x) ** 2 + (e.clientY - pDown.y) ** 2;
+    const click = d <= 25 && Date.now() - pDown.t < 500;
+    pDown = null;
+    if (!click || isDraggingGizmo || !state.pickingMode || !state.model) return;
+    pickAt(e);
+});
+function pickAt(e) {
+    const r = canvas.getBoundingClientRect();
+    pointer.x = ((e.clientX - r.left) / r.width) * 2 - 1;
+    pointer.y = -((e.clientY - r.top) / r.height) * 2 + 1;
+    
+    if (state.smartSelect) {
+        let closest = null; let minDist = 0.15;
+        const bonePos = new THREE.Vector3();
+        for (const bone of state.bones) {
+            bone.getWorldPosition(bonePos);
+            bonePos.project(camera);
+            const dist = Math.hypot(bonePos.x - pointer.x, bonePos.y - pointer.y);
+            if (dist < minDist) { minDist = dist; closest = bone; }
+        }
+        if (closest) { selectBone(closest); toast(`${getFaName(closest.name)}`, 'success'); }
+        else { toast('استخوانی یافت نشد', 'error'); }
+        return;
+    }
+
+    raycaster.setFromCamera(pointer, camera);
+    const meshes = []; state.model.traverse(c => { if (c.isMesh && !c.userData.isOnionSkin) meshes.push(c); });
+    const hits = raycaster.intersectObjects(meshes, false);
+    if (!hits.length) { toast('کلیک ناموفق', 'error'); return; }
+    const bone = pickBone(hits[0]);
+    if (bone) { selectBone(bone); toast(`${getFaName(bone.name)}`, 'success'); }
+}
+function pickBone(hit) {
+    const m = hit.object;
+    if (m.isSkinnedMesh && hit.face && m.geometry.attributes.skinIndex) {
+        const si = m.geometry.attributes.skinIndex, sw = m.geometry.attributes.skinWeight;
+        const wm = new Map();
+        for (const vi of [hit.face.a, hit.face.b, hit.face.c]) for (let j = 0; j < 4; j++) {
+            const bi = si.getComponent(vi, j), w = sw.getComponent(vi, j);
+            if (w > 0.01) wm.set(bi, (wm.get(bi) || 0) + w);
+        }
+        let b = -1, bw = 0; for (const [bi, w] of wm) if (w > bw) { bw = w; b = bi; }
+        if (b >= 0 && m.skeleton?.bones[b]) return m.skeleton.bones[b];
+    }
+    let best = null, bd = Infinity;
+    for (const bone of state.bones) { bone.getWorldPosition(_v1); const d = _v1.distanceTo(hit.point); if (d < bd) { bd = d; best = bone; } }
+    return best;
+}
+
+// ═══════ KEYFRAMES ═══════
+function getCurrentClip() { return state.clips[state.currentClipIdx]; }
+function getTrack(u) { const c = getCurrentClip(); if (!c.tracks[u]) c.tracks[u] = { p: [], r: [], s: [] }; return c.tracks[u]; }
+function insertKey(arr, t, v) {
+    const n = arr.length;
+    if (n === 0) { arr.push({ t, v }); return; }
+    if (t > arr[n-1].t + 0.0001) { arr.push({ t, v }); return; }
+    if (t < arr[0].t - 0.0001) { arr.unshift({ t, v }); return; }
+    let lo = 0, hi = n - 1;
+    while (lo <= hi) { const m = (lo + hi) >> 1; const d = arr[m].t - t; if (Math.abs(d) < 0.001) { arr[m].v = v; return; } if (d < 0) lo = m + 1; else hi = m - 1; }
+    arr.splice(lo, 0, { t, v });
+}
+function captureSingle(bone, t) {
+    if (state.snapFrame) t = snapTime(t);
+    const tr = getTrack(bone.uuid);
+    insertKey(tr.p, t, [bone.position.x, bone.position.y, bone.position.z]);
+    insertKey(tr.r, t, [bone.quaternion.x, bone.quaternion.y, bone.quaternion.z, bone.quaternion.w]);
+    insertKey(tr.s, t, [bone.scale.x, bone.scale.y, bone.scale.z]);
+}
+function deleteAt(uuid, t) { const tr = getTrack(uuid); tr.p = tr.p.filter(k => Math.abs(k.t - t) > 0.001); tr.r = tr.r.filter(k => Math.abs(k.t - t) > 0.001); tr.s = tr.s.filter(k => Math.abs(k.t - t) > 0.001); }
+
+$('addKey').addEventListener('click', () => { if (!state.selectedBone) return; pushUndo(); const bones = collectAffected(state.selectedBone); const t = state.currentTime; for (const b of bones) captureSingle(b, t); state.lastAppliedDirty = true; rebuildMarkersAndApply(); toast(`${bones.size} کلید`, 'success'); });
+$('addKeyAll').addEventListener('click', () => { if (!state.model) return; pushUndo(); const t = state.currentTime; for (const b of state.bones) captureSingle(b, t); state.lastAppliedDirty = true; rebuildMarkersAndApply(); toast(`کلید همه`, 'success'); });
+
+$('delKey').addEventListener('click', () => {
+    if (!state.selectedBone) return;
+    const t = state.selectedKeyframeTime !== null ? state.selectedKeyframeTime : snapTime(state.currentTime);
+    pushUndo();
+    const bones = collectAffected(state.selectedBone);
+    for (const b of bones) deleteAt(b.uuid, t);
+    state.lastAppliedDirty = true; state.selectedKeyframeTime = null;
+    rebuildMarkersAndApply();
+});
+
+$('clearKeys').addEventListener('click', () => { if (!state.selectedBone) return; pushUndo(); const bones = collectAffected(state.selectedBone); const clip = getCurrentClip(); for (const b of bones) delete clip.tracks[b.uuid]; state.lastAppliedDirty = true; rebuildMarkersAndApply(); });
+
+$('copyKey').addEventListener('click', () => {
+    const t = state.selectedKeyframeTime !== null ? state.selectedKeyframeTime : snapTime(state.currentTime);
+    state.copiedKeyframes = {};
+    const clip = getCurrentClip();
+    let count = 0;
+    for (const [uuid, tr] of Object.entries(clip.tracks)) {
+        const keyP = tr.p.find(k => Math.abs(k.t - t) < 0.001);
+        const keyR = tr.r.find(k => Math.abs(k.t - t) < 0.001);
+        const keyS = tr.s.find(k => Math.abs(k.t - t) < 0.001);
+        if (keyP || keyR || keyS) {
+            state.copiedKeyframes[uuid] = { p: keyP, r: keyR, s: keyS };
+            count++;
+        }
+    }
+    if (count > 0) toast(`${count} استخوان کپی شد`, 'success');
+    else toast('کلیدی در این زمان نیست', 'warning');
+});
+
+$('pasteKey').addEventListener('click', () => {
+    if (!state.copiedKeyframes || !Object.keys(state.copiedKeyframes).length) { toast('هیچ کلیدی کپی نشده', 'warning'); return; }
+    pushUndo();
+    const t = snapTime(state.currentTime);
+    const clip = getCurrentClip();
+    let count = 0;
+    for (const [uuid, keys] of Object.entries(state.copiedKeyframes)) {
+        if (!clip.tracks[uuid]) clip.tracks[uuid] = { p: [], r: [], s: [] };
+        const tr = clip.tracks[uuid];
+        if (keys.p) insertKey(tr.p, t, [...keys.p.v]);
+        if (keys.r) insertKey(tr.r, t, [...keys.r.v]);
+        if (keys.s) insertKey(tr.s, t, [...keys.s.v]);
+        count++;
+    }
+    state.lastAppliedDirty = true; rebuildMarkersAndApply();
+    toast(`${count} استخوان چسبانده شد`, 'success');
+});
+
+$('autoKey').addEventListener('change', e => { state.autoKey = e.target.checked; });
+$('snapFrame').addEventListener('change', e => { state.snapFrame = e.target.checked; });
+$('mirrorSubtreeToggle').addEventListener('change', e => { state.mirrorSubtree = e.target.checked; });
+$('mirrorAxis').addEventListener('change', e => { state.mirrorAxis = e.target.value; });
+
+function sampleVec3(keys, t, interp, out) {
+    const n = keys.length; if (n === 0) return false;
+    if (n === 1 || t <= keys[0].t) { out.set(keys[0].v[0], keys[0].v[1], keys[0].v[2]); return true; }
+    if (t >= keys[n-1].t) { out.set(keys[n-1].v[0], keys[n-1].v[1], keys[n-1].v[2]); return true; }
+    let lo = 0, hi = n - 1;
+    while (lo < hi - 1) { const m = (lo + hi) >> 1; if (keys[m].t <= t) lo = m; else hi = m; }
+    const a = keys[lo], b = keys[hi];
+    let alpha = (t - a.t) / (b.t - a.t);
+    if (interp === 'smooth') alpha = alpha * alpha * (3 - 2 * alpha); else if (interp === 'step') alpha = 0;
+    out.set(a.v[0] + (b.v[0] - a.v[0]) * alpha, a.v[1] + (b.v[1] - a.v[1]) * alpha, a.v[2] + (b.v[2] - a.v[2]) * alpha);
+    return true;
+}
+function sampleQuat(keys, t, interp, out) {
+    const n = keys.length; if (n === 0) return false;
+    if (n === 1 || t <= keys[0].t) { out.set(keys[0].v[0], keys[0].v[1], keys[0].v[2], keys[0].v[3]); return true; }
+    if (t >= keys[n-1].t) { out.set(keys[n-1].v[0], keys[n-1].v[1], keys[n-1].v[2], keys[n-1].v[3]); return true; }
+    let lo = 0, hi = n - 1;
+    while (lo < hi - 1) { const m = (lo + hi) >> 1; if (keys[m].t <= t) lo = m; else hi = m; }
+    const a = keys[lo], b = keys[hi];
+    let alpha = (t - a.t) / (b.t - a.t);
+    if (interp === 'smooth') alpha = alpha * alpha * (3 - 2 * alpha); else if (interp === 'step') alpha = 0;
+    _q1.set(a.v[0], a.v[1], a.v[2], a.v[3]); _q2.set(b.v[0], b.v[1], b.v[2], b.v[3]);
+    out.copy(_q1).slerp(_q2, alpha); return true;
+}
+function applyTime(t, force = false) {
+    const target = Math.max(0, Math.min(t, state.duration));
+    if (!force && Math.abs(target - state.lastAppliedTime) < 0.0001 && !state.lastAppliedDirty) return;
+    const sampleT = state.playing ? target : snapTime(target);
+    state.currentTime = target; state.lastAppliedTime = target;
+    const clip = getCurrentClip();
+    const interp = clip.interp || 'smooth';
+    for (const [uuid, tr] of Object.entries(clip.tracks)) {
+        const bone = state.boneMap.get(uuid); if (!bone) continue;
+        if (tr.p?.length) sampleVec3(tr.p, sampleT, interp, bone.position);
+        if (tr.r?.length) sampleQuat(tr.r, sampleT, interp, bone.quaternion);
+        if (tr.s?.length) sampleVec3(tr.s, sampleT, interp, bone.scale);
+    }
+    syncSkeletons();
+    state.lastAppliedDirty = false;
+    updatePlayhead(); sceneDirty = true;
+    updateOnionSkins();
+}
+function updatePlayhead() {
+    const pct = (state.currentTime / state.duration) * 100;
+    $('playhead').style.left = `calc(${pct}% - 1px)`;
+    $('timeCurrent').textContent = state.currentTime.toFixed(2) + 's';
+    if ($('camPlayhead')) $('camPlayhead').style.left = `calc(${pct}% - 1px)`;
+}
+function rebuildMarkersAndApply() { refreshMarkers(); applyTime(state.currentTime, true); updateMirrorStatus(); }
+function refreshMarkers() {
+    const kfContainer = $('kfContainer');
+    kfContainer.querySelectorAll('.kf').forEach(m => m.remove());
+    const clip = getCurrentClip(); const selUUID = state.selectedBone?.uuid;
+    const mirrorUUID = selUUID && state.mirrorMode ? state.mirrorPairs.get(selUUID) : null;
+    const subtreeUUIDs = new Set();
+    if (selUUID) { const sel = state.boneMap.get(selUUID); if (sel) for (const d of hierarchy.getDescendants(sel)) subtreeUUIDs.add(d.uuid); }
+    const map = new Map();
+    for (const [uuid, tr] of Object.entries(clip.tracks)) {
+        const times = new Set();
+        for (const p of ['p', 'r', 's']) for (const k of tr[p] || []) times.add(k.t);
+        for (const t of times) {
+            let info = map.get(t);
+            if (!info) { info = { s: false, m: false, st: false, o: false }; map.set(t, info); }
+            if (uuid === selUUID) info.s = true;
+            else if (uuid === mirrorUUID) info.m = true;
+            else if (subtreeUUIDs.has(uuid)) info.st = true;
+            else info.o = true;
+        }
+    }
+    const frag = document.createDocumentFragment();
+    for (const [t, info] of map) {
+        const m = document.createElement('div'); m.className = 'kf';
+        if (info.s) m.classList.add('selected');
+        else if (info.m) m.classList.add('mirror');
+        else if (info.st) m.classList.add('subtree');
+        else m.classList.add('other');
+        
+        if (Math.abs(t - state.selectedKeyframeTime) < 0.001) m.classList.add('active-sel');
+        
+        m.style.left = `${(t / state.duration) * 100}%`;
+        m.title = `${t.toFixed(2)}s`;
+        m.addEventListener('click', e => { 
+            e.stopPropagation(); 
+            state.selectedKeyframeTime = t;
+            applyTime(t, true); 
+            refreshMarkers(); 
+        });
+        frag.appendChild(m);
+    }
+    kfContainer.appendChild(frag);
+    refreshCamMarkers();
+    updateRuler();
+}
+function refreshCamMarkers() {
+    const camTrack = $('camTrack'); if (!camTrack) return;
+    camTrack.querySelectorAll('.kf').forEach(m => m.remove());
+    const f = document.createDocumentFragment();
+    for (const k of state.camKeys) {
+        const m = document.createElement('div'); m.className = 'kf camera';
+        m.style.left = `${(k.t / state.duration) * 100}%`;
+        m.title = `${k.t.toFixed(2)}s`;
+        m.addEventListener('click', e => { e.stopPropagation(); applyTime(k.t, true); applyCamAt(k.t); });
+        f.appendChild(m);
+    }
+    camTrack.appendChild(f);
+    $('camKeyCount').textContent = state.camKeys.length;
+    $('camState').textContent = state.camEnabled ? 'فعال' : 'غیرفعال';
+    $('camState').style.color = state.camEnabled ? 'var(--green)' : 'var(--muted)';
+}
+function updateRuler() {
+    const ruler = $('ruler');
+    const grid = $('gridLines');
+    ruler.innerHTML = '';
+    grid.innerHTML = '';
+    const step = state.duration > 10 ? 2 : 1;
+    for (let i = 0; i <= state.duration; i += step) {
+        const pct = (i / state.duration) * 100;
+        
+        const tick = document.createElement('div');
+        tick.className = 'ruler-tick';
+        tick.style.left = `${pct}%`;
+        ruler.appendChild(tick);
+
+        const text = document.createElement('div');
+        text.className = 'ruler-text';
+        text.style.left = `${pct}%`;
+        text.textContent = i + 's';
+        ruler.appendChild(text);
+
+        const gLine = document.createElement('div');
+        gLine.className = 'grid-line';
+        grid.appendChild(gLine);
+    }
+}
+function setupTimelineDrag(el) {
+    let dragging = false, pendingX = null;
+    const handle = () => {
+        if (pendingX === null || renderer.xr.isPresenting) return;
+        const r = el.getBoundingClientRect();
+        const pct = Math.max(0, Math.min(1, (pendingX - r.left) / r.width));
+        applyTime(pct * state.duration, true);
+        if (state.camEnabled && state.camKeys.length > 0) applyCamAt(state.currentTime);
+        pendingX = null;
+    };
+    el.addEventListener('pointerdown', e => { if (e.target.classList.contains('kf') || renderer.xr.isPresenting) return; dragging = true; el.setPointerCapture(e.pointerId); pendingX = e.clientX; requestAnimationFrame(handle); });
+    el.addEventListener('pointermove', e => { if (!dragging || renderer.xr.isPresenting) return; pendingX = e.clientX; requestAnimationFrame(handle); });
+    el.addEventListener('pointerup', e => { dragging = false; pendingX = null; try { el.releasePointerCapture(e.pointerId); } catch (_) {} });
+    el.addEventListener('pointercancel', () => { dragging = false; pendingX = null; });
+}
+setupTimelineDrag($('track')); setupTimelineDrag($('camTrack'));
+
+$('play').addEventListener('click', () => {
+    const clip = getCurrentClip();
+    if (!Object.keys(clip.tracks).length && !state.camKeys.length) { toast('انیمیشنی نیست', 'warning'); return; }
+    state.playing = !state.playing;
+    $('play').textContent = state.playing ? 'توقف' : 'پخش';
+    if (state.playing) {
+        if (state.currentTime >= state.duration) { state.currentTime = 0; state.lastAppliedTime = -1; }
+        state.playStartReal = performance.now(); state.playStartTime = state.currentTime;
+        state.lastAppliedDirty = true;
+        applyTime(state.currentTime, true);
+        if (state.camEnabled && state.camKeys.length > 0) applyCamAt(state.currentTime);
+    }
+});
+$('stop').addEventListener('click', () => { state.playing = false; $('play').textContent = 'پخش'; applyTime(0, true); if (state.camEnabled && state.camKeys.length > 0) applyCamAt(0); });
+$('prevFrame').addEventListener('click', () => { const t = Math.max(0, state.currentTime - 1 / state.fps); applyTime(t, true); if (state.camEnabled && state.camKeys.length > 0) applyCamAt(t); });
+$('nextFrame').addEventListener('click', () => { const t = Math.min(state.duration, state.currentTime + 1 / state.fps); applyTime(t, true); if (state.camEnabled && state.camKeys.length > 0) applyCamAt(t); });
+$('loopBtn').addEventListener('click', () => { state.loop = !state.loop; $('loopBtn').style.background = state.loop ? 'var(--accent)' : ''; $('loopBtn').style.color = state.loop ? '#001418' : ''; });
+$('duration').addEventListener('change', e => { state.duration = Math.max(0.5, parseFloat(e.target.value)); refreshMarkers(); updatePlayhead(); });
+$('fpsInput').addEventListener('change', e => { state.fps = Math.max(10, parseInt(e.target.value)); updatePlayhead(); });
+window.addEventListener('keydown', e => {
+    const tag = (e.target?.tagName || '').toUpperCase();
+    if (['INPUT', 'SELECT', 'TEXTAREA'].includes(tag)) return;
+    if (e.code === 'Space') { e.preventDefault(); $('play').click(); }
+    if (e.code === 'KeyK') { e.preventDefault(); $('addKey').click(); }
+    if (e.code === 'ArrowLeft') { e.preventDefault(); $('prevFrame').click(); }
+    if (e.code === 'ArrowRight') { e.preventDefault(); $('nextFrame').click(); }
+    if (e.code === 'Escape') deselectBone();
+});
+
+function importFBXAnimations(anims) {
+    pushUndo();
+    for (const clip of anims) {
+        const tracks = {};
+        for (const track of clip.tracks) {
+            const dot = track.name.lastIndexOf('.');
+            const bn = track.name.slice(0, dot), prop = track.name.slice(dot + 1);
+            const bone = state.nameToBone.get(bn); if (!bone) continue;
+            if (!tracks[bone.uuid]) tracks[bone.uuid] = { p: [], r: [], s: [] };
+            const stride = prop === 'quaternion' ? 4 : 3;
+            const key = prop === 'position' ? 'p' : prop === 'quaternion' ? 'r' : prop === 'scale' ? 's' : null;
+            if (!key) continue;
+            for (let i = 0; i < track.times.length; i++) { const v = Array.from(track.values.slice(i * stride, (i + 1) * stride)); tracks[bone.uuid][key].push({ t: track.times[i], v }); }
+        }
+        state.clips.push({ name: clip.name || `FBX-${state.clips.length}`, tracks, interp: 'smooth' });
+    }
+    state.currentClipIdx = state.clips.length - 1; state.lastAppliedDirty = true; rebuildMarkersAndApply();
+    toast(`${anims.length} انیمیشن`, 'success');
+}
+$('animInput').addEventListener('change', async e => {
+    const file = e.target.files[0]; if (!file || !state.model) return;
+    state.fileMap.set(file.name, URL.createObjectURL(file)); state.fileMap.set(file.name.toLowerCase(), state.fileMap.get(file.name));
+    try { const obj = await loadFBX(file.name); if (obj.animations?.length) importFBXAnimations(obj.animations); }
+    catch (err) { toast(err.message, 'error'); }
+});
+
+// ═══════ CAMERA ═══════
+controls.addEventListener('start', () => { orbitDragging = true; });
+controls.addEventListener('end', () => { orbitDragging = false; });
+$('camEnabled').addEventListener('change', e => {
+    state.camEnabled = e.target.checked;
+    controls.enabled = !state.camEnabled && !isDraggingGizmo && !renderer.xr.isPresenting;
+    refreshCamMarkers();
+    if (state.camEnabled && !state.camKeys.length) {
+        toast('هنوز کلید ندارید', 'warning', 4000);
+        state.camEnabled = false; $('camEnabled').checked = false;
+        controls.enabled = !isDraggingGizmo && !renderer.xr.isPresenting; refreshCamMarkers();
+    } else if (state.camEnabled) toast('دوربین فعال', 'success');
+});
+$('camAddKey').addEventListener('click', () => {
+    const t = snapTime(state.currentTime);
+    const key = { t, pos: camera.position.toArray(), target: controls.target.toArray() };
+    const idx = state.camKeys.findIndex(k => Math.abs(k.t - t) < 0.001);
+    if (idx >= 0) state.camKeys[idx] = key;
+    else { state.camKeys.push(key); state.camKeys.sort((a, b) => a.t - b.t); }
+    refreshCamMarkers(); toast(`${t.toFixed(2)}s (${state.camKeys.length})`, 'success');
+});
+$('camPreview').addEventListener('click', () => { if (!state.camKeys.length) { toast('کلیدی نیست', 'warning'); return; } applyCamAt(state.currentTime); });
+$('camClear').addEventListener('click', () => { if (!state.camKeys.length) return; if (!confirm(`${state.camKeys.length} کلید حذف شوند؟`)) return; state.camKeys = []; if (state.camEnabled) { state.camEnabled = false; $('camEnabled').checked = false; controls.enabled = !isDraggingGizmo && !renderer.xr.isPresenting; } refreshCamMarkers(); });
+$('camInterp').addEventListener('change', e => { state.camInterp = e.target.value; });
+function applyCamAt(t) {
+    if (!state.camKeys.length || renderer.xr.isPresenting) return;
+    if (state.camKeys.length === 1) { const k = state.camKeys[0]; camera.position.fromArray(k.pos); controls.target.fromArray(k.target); controls.update(); return; }
+    if (t <= state.camKeys[0].t) { const k = state.camKeys[0]; camera.position.fromArray(k.pos); controls.target.fromArray(k.target); controls.update(); return; }
+    const last = state.camKeys[state.camKeys.length - 1];
+    if (t >= last.t) { camera.position.fromArray(last.pos); controls.target.fromArray(last.target); controls.update(); return; }
+    let lo = 0, hi = state.camKeys.length - 1;
+    while (lo < hi - 1) { const m = (lo + hi) >> 1; if (state.camKeys[m].t <= t) lo = m; else hi = m; }
+    const a = state.camKeys[lo], b = state.camKeys[hi];
+    let alpha = (t - a.t) / (b.t - a.t);
+    if (state.camInterp === 'smooth') alpha = alpha * alpha * (3 - 2 * alpha);
+    camera.position.set(a.pos[0] + (b.pos[0] - a.pos[0]) * alpha, a.pos[1] + (b.pos[1] - a.pos[1]) * alpha, a.pos[2] + (b.pos[2] - a.pos[2]) * alpha);
+    controls.target.set(a.target[0] + (b.target[0] - a.target[0]) * alpha, a.target[1] + (b.target[1] - a.target[1]) * alpha, a.target[2] + (b.target[2] - a.target[2]) * alpha);
+    controls.update();
+}
+
+// ═══════ ENV SELECTOR ═══════
+$('envSelect').addEventListener('change', e => { applyEnvironment(e.target.value); });
+
+// ═══════ ADVANCED LIGHTING PANEL ═══════
+$('openLighting').addEventListener('click', () => openAdvancedPanel('lighting'));
+$('openAnimateAdvanced').addEventListener('click', () => openAdvancedPanel('animate'));
+$('advClose').addEventListener('click', () => $('advancedPanel').classList.remove('show'));
+
+function openAdvancedPanel(type) {
+    const content = $('advContent');
+    const title = $('advTitle');
+    if (type === 'lighting') {
+        title.textContent = 'نورپردازی پیشرفته';
+        const env = ENV_DEFS[currentEnv];
+        content.innerHTML = `
+            <div class="adv-row"><label>نور خورشید</label><input type="range" id="advSunInt" min="0" max="5" step="0.1" value="${env.sun.i * lighting.sunMult}"><span class="val" id="advSunVal">${(env.sun.i * lighting.sunMult).toFixed(1)}</span></div>
+            <div class="adv-row"><label>نور محیط</label><input type="range" id="advAmbInt" min="0" max="2" step="0.05" value="${env.ambient.i * lighting.ambMult}"><span class="val" id="advAmbVal">${(env.ambient.i * lighting.ambMult).toFixed(2)}</span></div>
+            <div class="adv-row"><label>نور پرکننده</label><input type="range" id="advFillInt" min="0" max="2" step="0.05" value="${env.fill.i * lighting.fillMult}"><span class="val" id="advFillVal">${(env.fill.i * lighting.fillMult).toFixed(2)}</span></div>
+            <div class="adv-row"><label>نور لبه</label><input type="range" id="advRimInt" min="0" max="3" step="0.1" value="${env.rim.i * lighting.rimMult}"><span class="val" id="advRimVal">${(env.rim.i * lighting.rimMult).toFixed(1)}</span></div>
+            <div class="adv-row" style="padding-top:12px;border-top:1px solid var(--border);margin-top:6px;">
+                <button id="advResetLight" class="ghost" style="flex:1;">ریست همه</button>
+                <button id="advApplyEnv" class="primary" style="flex:1;">اعمال روی محیط</button>
+            </div>
+        `;
+        $('advSunInt').addEventListener('input', e => { const v = +e.target.value; keyLight.intensity = v; $('advSunVal').textContent = v.toFixed(1); });
+        $('advAmbInt').addEventListener('input', e => { const v = +e.target.value; ambientLight.intensity = v; $('advAmbVal').textContent = v.toFixed(2); });
+        $('advFillInt').addEventListener('input', e => { const v = +e.target.value; fillLight.intensity = v; $('advFillVal').textContent = v.toFixed(2); });
+        $('advRimInt').addEventListener('input', e => { const v = +e.target.value; rimLight.intensity = v; $('advRimVal').textContent = v.toFixed(1); });
+        $('advResetLight').addEventListener('click', () => { lighting.sunMult = 1; lighting.ambMult = 1; lighting.fillMult = 1; lighting.rimMult = 1; applyEnvironment(currentEnv); openAdvancedPanel('lighting'); });
+        $('advApplyEnv').addEventListener('click', () => {
+            const env = ENV_DEFS[currentEnv];
+            lighting.sunMult = keyLight.intensity / env.sun.i || 1;
+            lighting.ambMult = ambientLight.intensity / env.ambient.i || 1;
+            lighting.fillMult = fillLight.intensity / env.fill.i || 1;
+            lighting.rimMult = rimLight.intensity / env.rim.i || 1;
+            toast('تنظیمات اعمال شد', 'success');
+            $('advancedPanel').classList.remove('show');
+        });
+    } else if (type === 'animate') {
+        title.textContent = 'تنظیمات انیمیشن';
+        content.innerHTML = `
+            <div class="adv-row"><label>درون‌یابی</label>
+                <select id="advInterp" style="flex:1;">
+                    <option value="smooth" ${state.interpMode==='smooth'?'selected':''}>نرم</option>
+                    <option value="linear" ${state.interpMode==='linear'?'selected':''}>خطی</option>
+                    <option value="step" ${state.interpMode==='step'?'selected':''}>پله‌ای</option>
+                </select>
+            </div>
+            <div class="adv-row"><label>کی‌فریم فرزندان</label>
+                <label style="display:flex;align-items:center;gap:6px;font-size:0.75rem;"><input type="checkbox" id="advPropagate" ${state.propagateKey?'checked':''}> فعال</label>
+            </div>
+            <div class="adv-row" style="padding-top:12px;border-top:1px solid var(--border);margin-top:6px;">
+                <button id="advVerifyMirror" class="ghost" style="flex:1;">تأیید آیینه</button>
+                <button id="advResetMirror" class="ghost" style="flex:1;">ریست آیینه</button>
+            </div>
+            <div class="adv-row">
+                <button id="advSyncMirrorKeys" class="success" style="flex:1;">ضبط جفت‌ها</button>
+            </div>
+            <div class="adv-row">
+                <button id="advManualPair" class="ghost" style="flex:1;">جفت دستی</button>
+                <button id="advRemovePair" class="ghost" style="flex:1;">حذف جفت</button>
+            </div>
+            <div class="adv-row">
+                <button id="advResetPose" class="ghost" style="flex:1;">Pose پایه</button>
+            </div>
+        `;
+        $('advInterp').addEventListener('change', e => { state.interpMode = e.target.value; getCurrentClip().interp = state.interpMode; state.lastAppliedDirty = true; applyTime(state.currentTime, true); });
+        $('advPropagate').addEventListener('change', e => { state.propagateKey = e.target.checked; });
+        $('advVerifyMirror').addEventListener('click', verifyMirror);
+        $('advResetMirror').addEventListener('click', resetMirror);
+        $('advSyncMirrorKeys').addEventListener('click', syncMirrorKeys);
+        $('advManualPair').addEventListener('click', manualPair);
+        $('advRemovePair').addEventListener('click', removePair);
+        $('advResetPose').addEventListener('click', () => { if (!confirm('به Pose پایه برگردند؟')) return; pushUndo(); for (const bone of state.bones) { const bp = state.bindPose.get(bone.uuid); if (bp) { bone.position.copy(bp.position); bone.quaternion.copy(bp.quaternion); bone.scale.copy(bp.scale); bone.updateMatrix(); } } syncSkeletons(); sceneDirty = true; toast('Pose پایه', 'success'); });
+    }
+    $('advancedPanel').classList.add('show');
+}
+
+// Mirror helpers
+function verifyMirror() {
+    if (!state.mirrorPairs.size) { toast('جفتی نیافت', 'warning'); return; }
+    let ok = 0, fail = 0; const processed = new Set();
+    for (const [u1, u2] of state.mirrorPairs) {
+        if (processed.has(u1)) continue; processed.add(u1); processed.add(u2);
+        const b1 = state.boneMap.get(u1), b2 = state.boneMap.get(u2);
+        const bind1 = state.bindPose.get(u1), bind2 = state.bindPose.get(u2);
+        if (!b1 || !b2 || !bind1 || !bind2) continue;
+        const d1 = b1.quaternion.clone().multiply(bind1.quaternion.clone().invert());
+        const d2 = b2.quaternion.clone().multiply(bind2.quaternion.clone().invert());
+        
+        const deltaQuat = d2.clone();
+        if (state.mirrorAxis === 'x') { deltaQuat.y *= -1; deltaQuat.z *= -1; }
+        else if (state.mirrorAxis === 'y') { deltaQuat.x *= -1; deltaQuat.z *= -1; }
+        else if (state.mirrorAxis === 'z') { deltaQuat.x *= -1; deltaQuat.y *= -1; }
+        
+        if (d1.angleTo(deltaQuat) < 0.1) ok++; else fail++;
+    }
+    toast(fail === 0 ? `${ok} سالم` : `${fail}/${ok+fail}`, fail === 0 ? 'success' : 'warning');
+}
+function resetMirror() {
+    if (!state.mirrorPairs.size) return;
+    if (!confirm('ریست شوند؟')) return;
+    pushUndo();
+    const processed = new Set();
+    for (const [u1, u2] of state.mirrorPairs) {
+        if (processed.has(u1)) continue; processed.add(u1); processed.add(u2);
+        for (const u of [u1, u2]) { const b = state.boneMap.get(u), bp = state.bindPose.get(u); if (b && bp) { b.position.copy(bp.position); b.quaternion.copy(bp.quaternion); b.scale.copy(bp.scale); b.updateMatrix(); } }
+    }
+    syncSkeletons(); sceneDirty = true; toast('ریست شد', 'success');
+}
+function syncMirrorKeys() {
+    if (!state.mirrorPairs.size) { toast('جفتی نیافت', 'warning'); return; }
+    pushUndo();
+    const t = state.currentTime; const processed = new Set(); let n = 0;
+    for (const [u1, u2] of state.mirrorPairs) {
+        if (processed.has(u1)) continue; processed.add(u1); processed.add(u2);
+        const b1 = state.boneMap.get(u1), b2 = state.boneMap.get(u2);
+        if (b1) { captureSingle(b1, t); n++; }
+        if (b2) { captureSingle(b2, t); n++; }
+    }
+    state.lastAppliedDirty = true; rebuildMarkersAndApply();
+    toast(`${n} کلید`, 'success');
+}
+function manualPair() {
+    if (!state.selectedBone) { toast('اول انتخاب', 'warning'); return; }
+    const name = prompt(`جفت برای "${getFaName(state.selectedBone.name)}":`); if (!name) return;
+    const other = state.nameToBone.get(name);
+    if (!other || other === state.selectedBone) { toast('نامعتبر', 'error'); return; }
+    state.manualPairs.set(state.selectedBone.uuid, other.uuid);
+    state.mirrorPairs.set(state.selectedBone.uuid, other.uuid);
+    state.mirrorPairs.set(other.uuid, state.selectedBone.uuid);
+    rebuildBoneSelect(); toast(`${other.name}`, 'success');
+}
+function removePair() {
+    if (!state.selectedBone) return;
+    const mb = getMirrorBone(state.selectedBone);
+    if (!mb) { toast('جفت ندارد', 'warning'); return; }
+    state.mirrorPairs.delete(state.selectedBone.uuid); state.mirrorPairs.delete(mb.uuid);
+    state.manualPairs.delete(state.selectedBone.uuid); state.manualPairs.delete(mb.uuid);
+    rebuildBoneSelect(); toast('حذف شد', 'success');
+}
+
+// ═══════ RECORDING ═══════
+$('record').addEventListener('click', startRecord);
+$('stopRecord').addEventListener('click', stopRecord);
+async function startRecord() {
+    if (!state.model || state.isRecording) return;
+    const h = parseInt($('recQuality').value), fp = parseInt($('recFps').value);
+    const w = Math.round(h * canvas.clientWidth / canvas.clientHeight);
+    state._orig = { w: canvas.clientWidth, h: canvas.clientHeight, r: renderer.getPixelRatio() };
+    renderer.setPixelRatio(1); renderer.setSize(w, h, false);
+    camera.aspect = w / h; camera.updateProjectionMatrix();
+    applyTime(0, true); state.playing = false;
+    if (state.camEnabled && state.camKeys.length) applyCamAt(0);
+    hideOverlaysForOutput();
+    await new Promise(r => requestAnimationFrame(r));
+    const stream = renderer.domElement.captureStream(fp);
+    const mime = MediaRecorder.isTypeSupported('video/webm;codecs=vp9') ? 'video/webm;codecs=vp9' : 'video/webm';
+    state.recordedChunks = [];
+    state.recorder = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 12000000 });
+    state.recorder.ondataavailable = e => { if (e.data.size > 0) state.recordedChunks.push(e.data); };
+    state.recorder.onstop = () => {
+        restoreOverlaysAfterOutput();
+        const blob = new Blob(state.recordedChunks, { type: 'video/webm' });
+        const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `dota-${Date.now()}.webm`; a.click();
+        setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+        toast(`${(blob.size / 1048576).toFixed(1)}MB`, 'success');
+        renderer.setPixelRatio(state._orig.r); renderer.setSize(state._orig.w, state._orig.h, false);
+        camera.aspect = state._orig.w / state._orig.h; camera.updateProjectionMatrix();
+    };
+    state.recorder.start(100);
+    state.isRecording = true; state.playing = true; state.currentTime = 0;
+    state.playStartReal = performance.now(); state.playStartTime = 0;
+    state.lastAppliedDirty = true; state.lastAppliedTime = -1;
+    $('play').textContent = 'توقف'; $('rec').style.display = 'block';
+    $('record').disabled = true; $('stopRecord').disabled = false;
+}
+function stopRecord() {
+    if (!state.isRecording) return;
+    state.isRecording = false; state.playing = false;
+    $('play').textContent = 'پخش'; $('rec').style.display = 'none';
+    $('record').disabled = false; $('stopRecord').disabled = true;
+    if (state.recorder?.state !== 'inactive') state.recorder.stop();
+}
+
+// ═══════ EXPORT ═══════
+$('exportGltf').addEventListener('click', () => {
+    if (!state.model) { toast('مدل لود نشده', 'warning'); return; }
+    hideOverlaysForOutput();
+    requestAnimationFrame(() => {
+        const clip = getCurrentClip(); const tracks = buildTracks(clip.tracks, clip.interp);
+        const clips = tracks.length ? [new THREE.AnimationClip(clip.name, state.duration, tracks)] : [];
+        new GLTFExporter().parse(state.model, gltf => {
+            restoreOverlaysAfterOutput();
+            const blob = new Blob([gltf], { type: 'application/octet-stream' });
+            const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `dota-${Date.now()}.glb`; a.click();
+            setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+            toast('glTF', 'success');
+        }, err => { restoreOverlaysAfterOutput(); toast(err.message, 'error'); }, { animations: clips, binary: true, embedImages: true });
+    });
+});
+function buildTracks(map, interp) {
+    const tracks = [];
+    for (const [uuid, tr] of Object.entries(map)) {
+        const b = state.boneMap.get(uuid); if (!b) continue;
+        if (tr.p?.length >= 1) { const t = new THREE.VectorKeyframeTrack(`${b.name}.position`, tr.p.map(k => k.t), tr.p.flatMap(k => k.v)); t.setInterpolation(interp === 'step' ? THREE.InterpolateDiscrete : (interp === 'smooth' ? THREE.InterpolateSmooth : THREE.InterpolateLinear)); tracks.push(t); }
+        if (tr.r?.length >= 1) { const t = new THREE.QuaternionKeyframeTrack(`${b.name}.quaternion`, tr.r.map(k => k.t), tr.r.flatMap(k => k.v)); t.setInterpolation(interp === 'step' ? THREE.InterpolateDiscrete : THREE.InterpolateLinear); tracks.push(t); }
+        if (tr.s?.length >= 1) { const t = new THREE.VectorKeyframeTrack(`${b.name}.scale`, tr.s.map(k => k.t), tr.s.flatMap(k => k.v)); t.setInterpolation(interp === 'step' ? THREE.InterpolateDiscrete : (interp === 'smooth' ? THREE.InterpolateSmooth : THREE.InterpolateLinear)); tracks.push(t); }
+    }
+    return tracks;
+}
+$('saveProject').addEventListener('click', () => {
+    const data = { version: 'v50', duration: state.duration, fps: state.fps, clips: state.clips, camKeys: state.camKeys, camEnabled: state.camEnabled, camInterp: state.camInterp, currentClipIdx: state.currentClipIdx, interpMode: state.interpMode, envKey: state.currentEnvKey, lighting };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `dota-${Date.now()}.json`; a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000); toast('ذخیره شد', 'success');
+});
+$('projectInput').addEventListener('change', async e => {
+    const f = e.target.files[0]; if (!f) return;
+    try {
+        const d = JSON.parse(await f.text());
+        state.duration = d.duration || 5; state.fps = d.fps || 24;
+        state.clips = d.clips || [{ name: 'کلیپ ۱', tracks: {}, interp: 'smooth' }];
+        for (const c of state.clips) if (c.keyframes && !c.tracks) { c.tracks = c.keyframes; delete c.keyframes; }
+        state.camKeys = d.camKeys || []; state.camEnabled = d.camEnabled || false; state.camInterp = d.camInterp || 'smooth';
+        state.currentClipIdx = d.currentClipIdx || 0; state.interpMode = d.interpMode || 'smooth';
+        if (d.lighting) Object.assign(lighting, d.lighting);
+        $('duration').value = state.duration; $('fpsInput').value = state.fps;
+        $('camEnabled').checked = state.camEnabled; $('camInterp').value = state.camInterp;
+        controls.enabled = !state.camEnabled && !isDraggingGizmo && !renderer.xr.isPresenting;
+        state.lastAppliedDirty = true; state.lastAppliedTime = -1;
+        refreshMarkers();
+        if (d.envKey) { $('envSelect').value = d.envKey; applyEnvironment(d.envKey); }
+        toast('بارگذاری شد', 'success');
+    } catch (err) { toast('فایل نامعتبر', 'error'); }
+});
+
+// ═══════ HIERARCHY FIX ═══════
+function mergeSkeletons(silent = false) {
+    if (!state.skinnedMeshes.length) return 0;
+    let masterSM = null, maxB = 0;
+    for (const sm of state.skinnedMeshes) if (sm.skeleton && sm.skeleton.bones.length > maxB) { maxB = sm.skeleton.bones.length; masterSM = sm; }
+    if (!masterSM) return 0;
+    const masterSkel = masterSM.skeleton, masterBones = masterSkel.bones;
+    const masterByName = new Map(); for (const b of masterBones) masterByName.set(b.name, b);
+    const masterInverses = [...masterSkel.boneInverses];
+
+    let dups = 0; const seen = new Set();
+    for (const sm of state.skinnedMeshes) { if (!sm.skeleton) continue; for (const b of sm.skeleton.bones) { if (seen.has(b.name) && sm !== masterSM && masterByName.get(b.name) !== b) dups++; seen.add(b.name); } }
+    if (dups === 0) { if (!silent) toast('یکسان', 'success'); return 0; }
+    let n = 0;
+    for (const sm of state.skinnedMeshes) {
+        if (sm === masterSM || !sm.skeleton) continue;
+        const newB = []; const idxMap = new Map();
+        for (let i = 0; i < sm.skeleton.bones.length; i++) {
+            const old = sm.skeleton.bones[i]; const mB = masterByName.get(old.name);
+            if (mB) { newB.push(mB); idxMap.set(i, masterBones.indexOf(mB)); }
+            else { 
+                newB.push(old); 
+                idxMap.set(i, masterBones.length); 
+                masterBones.push(old); 
+                masterByName.set(old.name, old);
+                masterInverses.push(sm.skeleton.boneInverses[i]); 
+            }
+        }
+        if (sm.geometry?.attributes.skinIndex) {
+            const oldSI = sm.geometry.attributes.skinIndex;
+            const newSI = new Uint16Array(oldSI.count * oldSI.itemSize);
+            for (let i = 0; i < oldSI.count; i++) for (let j = 0; j < oldSI.itemSize; j++) { const o = oldSI.getComponent(i, j); newSI[i * oldSI.itemSize + j] = idxMap.get(o) ?? 0; }
+            sm.geometry.setAttribute('skinIndex', new THREE.Uint16BufferAttribute(newSI, oldSI.itemSize));
+            sm.geometry.attributes.skinIndex.needsUpdate = true;
+        }
+        sm.skeleton = new THREE.Skeleton(masterBones, masterInverses); 
+        n++;
+    }
+    state.bones = Array.from(new Set(masterBones));
+    state.boneMap.clear(); state.nameToBone.clear();
+    for (const b of state.bones) { state.boneMap.set(b.uuid, b); state.nameToBone.set(b.name, b); }
+    hierarchy.invalidate(); rebuildBoneSelect(); rebuildManualSelects(); syncSkeletons();
+    if (!silent) toast(`${n}`, 'success');
+    return n;
+}
+function inferParent(bone, nameMap) {
+    const m = bone.name.match(/^(.*?)([._-]?)(\d+)([._-]?)([a-zA-Z]*)$/);
+    if (!m) return null;
+    const p = m[1], s1 = m[2], numS = m[3], s2 = m[4], suf = m[5];
+    const num = parseInt(numS);
+    if (num <= 1) return null;
+    const ln = num - 1, padded = String(ln).padStart(numS.length, '0');
+    for (const c of [p + s1 + padded + s2 + suf, p + s1 + ln + s2 + suf, p + padded + suf, p + ln + suf]) if (nameMap.has(c)) return nameMap.get(c);
+    return null;
+}
+function rebuildHierarchy(silent = false) {
+    if (!state.model || !state.bones.length) return false;
+    if (!silent && !confirm('بازسازی شود؟')) return false;
+    try {
+        scene.updateMatrixWorld(true);
+        const worldData = new Map();
+        for (const b of state.bones) { const p = new THREE.Vector3().setFromMatrixPosition(b.matrixWorld); const q = new THREE.Quaternion(); const sc = new THREE.Vector3(); b.matrixWorld.decompose(new THREE.Vector3(), q, sc); worldData.set(b.uuid, { p, q, sc }); }
+        const nameMap = new Map(); for (const b of state.bones) nameMap.set(b.name, b);
+        let root = null;
+        for (const pat of ['pelvis', 'hips', 'root', 'bip01', 'bip001', 'origin']) { for (const b of state.bones) { if (b.name.toLowerCase().includes(pat)) { root = b; break; } } if (root) break; }
+        if (!root) { let bR = state.bones[0], bC = 0; for (const b of state.bones) { const c = hierarchy.getDescendants(b).length; if (c > bC) { bC = c; bR = b; } } root = bR; }
+        
+        const origParents = new Map();
+        for (const b of state.bones) if (b.parent && b.parent.isBone) origParents.set(b.uuid, b.parent);
+        const parentMap = new Map(); parentMap.set(root.uuid, null);
+        
+        for (const b of state.bones) { if (b === root) continue; const np = inferParent(b, nameMap); if (np && np !== b) parentMap.set(b.uuid, np); }
+        
+        for (const b of state.bones) { 
+            if (b === root || parentMap.has(b.uuid)) continue; 
+            const op = origParents.get(b.uuid); 
+            if (op && op !== b) { 
+                let p = op; let r = false; const v = new Set(); 
+                while (p && !v.has(p.uuid)) { 
+                    v.add(p.uuid); 
+                    if (p === root) { r = true; break; } 
+                    p = origParents.get(p.uuid); 
+                } 
+                if (r || op === root) parentMap.set(b.uuid, op); 
+            } 
+        }
+        
+        for (const b of state.bones) { 
+            if (b === root || parentMap.has(b.uuid)) continue; 
+            const p = worldData.get(b.uuid).p; 
+            let best = null, bd = Infinity; 
+            for (const o of state.bones) { 
+                if (o === b || o === root || hierarchy.isLeaf(o)) continue; 
+                const d = worldData.get(o.uuid).p.distanceTo(p); 
+                if (d < bd && d > 0.001) { bd = d; best = o; } 
+            } 
+            parentMap.set(b.uuid, best || root); 
+        }
+        
+        for (const b of state.bones) if (b !== root && !parentMap.has(b.uuid)) parentMap.set(b.uuid, root);
+        
+        const hasCycle = (c, p) => { 
+            let x = p; const v = new Set(); 
+            while (x && !v.has(x.uuid)) { 
+                if (x === c) return true; 
+                v.add(x.uuid); x = parentMap.get(x.uuid); 
+            } 
+            return false; 
+        };
+        
+        for (const [cu, p] of parentMap) { 
+            if (!p) continue; const c = state.boneMap.get(cu); 
+            if (c && hasCycle(c, p)) parentMap.set(cu, root); 
+        }
+        
+        for (const b of state.bones) if (b !== root) state.model.attach(b);
+        state.model.attach(root);
+        
+        for (const [cu, p] of parentMap) { 
+            if (!p) continue; const c = state.boneMap.get(cu); 
+            if (c && c !== p) p.attach(c); 
+        }
+        
+        scene.updateMatrixWorld(true);
+        for (const sm of state.skinnedMeshes) if (sm.skeleton) sm.skeleton.update();
+        hierarchy.invalidate(); rebuildBoneSelect(); rebuildManualSelects(); refreshMarkers(); sceneDirty = true;
+        detectMirrorPairs(); updateMirrorUI();
+        if (!silent) toast('بازسازی شد', 'success');
+        return true;
+    } catch (err) { if (!silent) toast(err.message, 'error'); return false; }
+}
+function manualReparent(pid, cid) {
+    if (!pid || !cid) return;
+    const p = state.boneMap.get(pid), c = state.boneMap.get(cid);
+    if (!p || !c || p === c) return;
+    let x = p; while (x) { if (x === c) return; x = x.parent; }
+    p.attach(c); c.updateMatrix(); c.updateMatrixWorld(true);
+    scene.updateMatrixWorld(true);
+    for (const sm of state.skinnedMeshes) if (sm.skeleton) sm.skeleton.update();
+    hierarchy.invalidate(); rebuildBoneSelect(); refreshMarkers(); sceneDirty = true;
+    toast(`${getFaName(c.name)} > ${getFaName(p.name)}`, 'success');
+}
+$('mergeSkel').addEventListener('click', () => mergeSkeletons(false));
+$('rebuildHier').addEventListener('click', () => rebuildHierarchy(false));
+$('verifyHier').addEventListener('click', () => {
+    scene.updateMatrixWorld(true);
+    let ok = 0, fail = 0;
+    for (const b of state.bones) {
+        const ch = hierarchy.getDirectChildren(b); if (!ch.length) continue;
+        const before = new THREE.Vector3().setFromMatrixPosition(ch[0].matrixWorld);
+        const oq = b.quaternion.clone();
+        b.quaternion.multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), 0.05));
+        b.updateMatrix(); b.updateMatrixWorld(true); scene.updateMatrixWorld(true);
+        const after = new THREE.Vector3().setFromMatrixPosition(ch[0].matrixWorld);
+        b.quaternion.copy(oq); b.updateMatrix(); b.updateMatrixWorld(true);
+        if (before.distanceTo(after) > 0.0001) ok++; else fail++;
+    }
+    toast(fail === 0 ? `${ok} سالم` : `${fail} ناسالم`, fail === 0 ? 'success' : 'warning', 4000);
+});
+$('runAllFixes').addEventListener('click', () => { pushUndo(); mergeSkeletons(false); setTimeout(() => rebuildHierarchy(false), 300); });
+$('manualReparent').addEventListener('click', () => manualReparent($('manualParent').value, $('manualChild').value));
+$('manualDetach').addEventListener('click', () => { const c = state.boneMap.get($('manualChild').value); if (c) { pushUndo(); state.model.attach(c); c.updateMatrix(); c.updateMatrixWorld(true); hierarchy.invalidate(); rebuildBoneSelect(); refreshMarkers(); sceneDirty = true; toast('جدا شد', 'success'); } });
+
+// ═══════ CAMERA UTILS ═══════
+function fitCamera(obj) {
+    const box = new THREE.Box3().setFromObject(obj); const sp = box.getBoundingSphere(new THREE.Sphere()); const r = sp.radius;
+    if (!isFinite(r) || r === 0) return;
+    controls.minDistance = r * 0.3; controls.maxDistance = r * 15;
+    const d = r / Math.sin((camera.fov * Math.PI / 180) / 2);
+    camera.position.set(d * 0.5, d * 0.3, d * 0.8); camera.near = r / 100; camera.far = r * 100; camera.updateProjectionMatrix();
+    controls.target.set(0, 0, 0); controls.update();
+    keyLight.position.set(r * 2, r * 3, r * 2); keyLight.target.position.set(0, 0, 0); keyLight.target.updateMatrixWorld();
+}
+$('zoomIn').addEventListener('click', () => zoom(0.8));
+$('zoomOut').addEventListener('click', () => zoom(1.25));
+$('resetCam').addEventListener('click', () => { if (state.model) fitCamera(state.model); });
+function zoom(f) { const d = new THREE.Vector3().subVectors(camera.position, controls.target); const l = THREE.MathUtils.clamp(d.length() * f, controls.minDistance, controls.maxDistance); d.setLength(l); camera.position.copy(controls.target).add(d); controls.update(); }
+
+// ═══════ WEBXR AR FIXED ═══════
+$('arBtn').addEventListener('click', async () => {
+    if (!state.model) { toast('اول مدل را لود کنید', 'warning'); return; }
+    if (!navigator.xr) { toast('مرورگر شما از AR پشتیبانی نمی‌کند', 'error'); return; }
+    
+    try {
+        const supported = await navigator.xr.isSessionSupported('immersive-ar');
+        if (!supported) { toast('گوشی شما از AR سخت‌افزاری پشتیبانی نمی‌کند', 'error'); return; }
+
+        xrSession = await navigator.xr.requestSession('immersive-ar', {
+            requiredFeatures: ['hit-test', 'local-floor'],
+            optionalFeatures: ['dom-overlay'],
+            domOverlay: { root: document.getElementById('ar-overlay') }
+        });
+        
+        xrSession.addEventListener('end', onAREnd);
+        renderer.xr.setSession(xrSession);
+        
+        // Hide Editor UI
+        $('panel').style.display = 'none';
+        $('fixedTimeline').style.display = 'none';
+        document.querySelector('.fab').style.display = 'none';
+        tControls.detach();
+        controls.enabled = false;
+        grid.visible = false;
+        
+        // Show AR Overlay
+        document.getElementById('ar-overlay').style.display = 'block';
+        document.getElementById('ar-hint').innerText = 'دوربین را به سمت زمین بگیرید و لمس کنید';
+        document.getElementById('ar-hint').style.opacity = '1';
+        
+        // Save Editor State
+        originalBg = scene.background;
+        scene.background = null; 
+        
+        // Create AR Wrapper
+        arGroup = new THREE.Group();
+        arGroup.position.set(0, 0, 0);
+        arGroup.quaternion.identity();
+        scene.add(arGroup);
+
+        // Move Model into AR Wrapper
+        state.model.userData.editorPos = state.model.position.clone();
+        state.model.userData.editorQuat = state.model.quaternion.clone();
+        arGroup.add(state.model);
+        state.model.position.set(0, 0, 0);
+        state.model.quaternion.identity();
+
+        // Add Shadow Plane for Realism
+        shadowPlane = new THREE.Mesh(
+            new THREE.PlaneGeometry(1.5, 1.5),
+            new THREE.ShadowMaterial({ opacity: 0.4 })
+        );
+        shadowPlane.rotation.x = -Math.PI / 2;
+        shadowPlane.receiveShadow = true;
+        shadowPlane.position.y = 0.01;
+        arGroup.add(shadowPlane);
+
+        // Set reference space for hit test
+        const viewerSpace = await xrSession.requestReferenceSpace('viewer');
+        xrHitTestSource = await xrSession.requestHitTestSource({ space: viewerSpace });
+        
+        // AR Select Event
+        xrSession.addEventListener('select', () => {
+            if (reticle.visible) {
+                const pos = new THREE.Vector3().setFromMatrixPosition(reticle.matrix);
+                const rot = new THREE.Quaternion().setFromRotationMatrix(reticle.matrix);
+                arGroup.position.copy(pos);
+                arGroup.quaternion.copy(rot);
+                reticle.visible = false; 
+                document.getElementById('ar-hint').innerText = 'مدل با موفقیت قرار گرفت';
+                setTimeout(() => { document.getElementById('ar-hint').style.opacity = '0'; }, 2000);
+                toast('مدل در واقعیت قرار گرفت', 'success');
+            }
+        });
+        
+    } catch (err) {
+        console.error(err);
+        toast('خطا در راه‌اندازی AR: ' + err.message, 'error');
+        if (document.getElementById('ar-overlay').style.display === 'block') {
+            onAREnd();
+        }
+    }
+});
+
+function onAREnd() {
+    xrSession = null;
+    xrHitTestSource = null;
+    reticle.visible = false;
+    
+    // Restore Editor UI
+    $('panel').style.display = 'flex';
+    $('fixedTimeline').style.display = 'flex';
+    document.querySelector('.fab').style.display = 'flex';
+    controls.enabled = true;
+    grid.visible = $('toggleGrid').checked;
+    document.getElementById('ar-overlay').style.display = 'none';
+    
+    // Restore Background
+    scene.background = originalBg;
+    
+    // Restore Model to Editor
+    if (arGroup && state.model) {
+        scene.remove(arGroup);
+        scene.add(state.model);
+        if (state.model.userData.editorPos) {
+            state.model.position.copy(state.model.userData.editorPos);
+            state.model.quaternion.copy(state.model.userData.editorQuat);
+        }
+    }
+    arGroup = null;
+    shadowPlane = null;
+    
+    toast('از AR خارج شدید', 'info');
+}
+
+$('ar-exit').addEventListener('click', () => {
+    if (xrSession) xrSession.end();
+});
+
+// ═══════ TABS ═══════
+document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+    document.querySelectorAll('.content').forEach(c => c.classList.remove('active'));
+    t.classList.add('active');
+    document.querySelector(`.content[data-content="${t.dataset.tab}"]`).classList.add('active');
+    if (t.dataset.tab === 'camera') {
+        $('camTrack').style.display = 'block';
+    } else {
+        $('camTrack').style.display = 'none';
+    }
+}));
+$('toggleUI').addEventListener('click', () => { $('panel').classList.toggle('collapsed'); setTimeout(resize, 50); });
+let dragY = 0, dragOn = false;
+$('dragHandle').addEventListener('pointerdown', e => { dragOn = true; dragY = e.clientY; $('dragHandle').setPointerCapture(e.pointerId); });
+$('dragHandle').addEventListener('pointermove', e => { if (!dragOn) return; const dy = e.clientY - dragY; if (dy > 40) { $('panel').classList.add('collapsed'); dragOn = false; } else if (dy < -40) { $('panel').classList.remove('collapsed'); dragOn = false; } });
+$('dragHandle').addEventListener('pointerup', () => { dragOn = false; });
+
+function resize() { 
+    if (renderer.xr.isPresenting) return;
+    const w = canvas.clientWidth, h = canvas.clientHeight; 
+    if (!w || !h) return; 
+    renderer.setSize(w, h, false); 
+    camera.aspect = w / h; 
+    camera.updateProjectionMatrix(); 
+}
+window.addEventListener('resize', resize);
+new ResizeObserver(resize).observe(canvas);
+
+function clearModel() {
+    if (state.model) scene.remove(state.model);
+    if (state.skelHelper) { scene.remove(state.skelHelper); state.skelHelper = null; }
+    if (onionPrev) { scene.remove(onionPrev); onionPrev = null; onionPrevBones.clear(); }
+    if (onionNext) { scene.remove(onionNext); onionNext = null; onionNextBones.clear(); }
+    if (arGroup) { scene.remove(arGroup); arGroup = null; }
+    tControls.detach();
+    state.model = null; state.bones = []; state.boneMap.clear(); state.nameToBone.clear(); state.bindPose.clear(); state.mirrorPairs.clear(); state.manualPairs.clear(); state.skinnedMeshes = []; state.selectedBone = null; state.currentTime = 0; state.lastAppliedTime = -1;
+    state.clips = [{ name: 'کلیپ ۱', tracks: {}, interp: 'smooth' }]; state.currentClipIdx = 0;
+    state.camKeys = []; state.camEnabled = false;
+    state.selectedKeyframeTime = null; state.copiedKeyframes = null;
+    undoStack.length = 0; redoStack.length = 0; updateUndoRedoUI();
+    hierarchy.invalidate();
+    boneHL.visible = false;
+    $('boneSelect').innerHTML = '<option value="">-- استخوان --</option>';
+    $('bonePath').textContent = '-';
+    $('camEnabled').checked = false;
+    controls.enabled = true;
+    refreshMarkers(); updatePlayhead();
+}
+
+// ═══════ MAIN LOOP (WebXR Compatible) ═══════
+let frames = 0, lastFps = performance.now();
+renderer.setAnimationLoop((time, frame) => {
+    const now = performance.now();
+    const dt = Math.min(clock.getDelta(), 0.1);
+    const elapsed = now / 1000;
+
+    // AR Logic
+    if (frame) {
+        const refSpace = renderer.xr.getReferenceSpace();
+        if (xrHitTestSource) {
+            const hitTestResults = frame.getHitTestResults(xrHitTestSource);
+            if (hitTestResults.length > 0) {
+                const hit = hitTestResults[0];
+                const pose = hit.getPose(refSpace);
+                reticle.visible = true;
+                reticle.matrix.fromArray(pose.transform.matrix);
+            } else {
+                reticle.visible = false;
+            }
+        }
+    } else {
+        // Normal Orbit Controls
+        controls.enabled = !isDraggingGizmo && !state.camEnabled;
+        controls.update();
+    }
+
+    // Animation Logic
+    if (state.playing) {
+        const playElapsed = (now - state.playStartReal) / 1000;
+        let newTime = state.playStartTime + playElapsed;
+        if (newTime >= state.duration) {
+            if (state.loop) { state.playStartReal = now; state.playStartTime = 0; newTime = 0; }
+            else { newTime = state.duration; state.playing = false; $('play').textContent = 'پخش'; if (state.isRecording) stopRecord(); }
+        }
+        state.currentTime = newTime;
+        applyTime(newTime, true);
+        if (state.camEnabled && state.camKeys.length > 0 && !orbitDragging && !frame) applyCamAt(newTime);
+    }
+
+    if (envParticles.length) { for (const p of envParticles) { if (p.userData.animate) p.userData.animate(elapsed); } }
+
+    if (state.selectedBone && !overlaysHidden && !frame) {
+        state.selectedBone.getWorldPosition(_v1); boneHL.position.copy(_v1); boneHL.visible = true;
+    }
+
+    renderer.render(scene, camera);
+    sceneDirty = false;
+
+    frames++;
+    if (now - lastFps >= 1000) {
+        const f = frames;
+        const el = $('fps'); el.textContent = `${f} FPS`;
+        el.className = 'badge' + (f >= 55 ? ' ok' : f >= 30 ? ' warn' : ' err');
+        frames = 0; lastFps = now;
+    }
+});
+
+resize(); refreshMarkers(); updatePlayhead();
+applyEnvironment('studio');
+console.log('[v50] Ready - WebXR AR Fixed, Wrapper Added, UI Fixed');
+</script>
+</body>
+</html>
